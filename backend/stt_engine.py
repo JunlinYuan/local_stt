@@ -1,66 +1,88 @@
-"""Speech-to-text engine using faster-whisper."""
+"""Speech-to-text engine using lightning-whisper-mlx for Apple Silicon."""
 
-import io
+import tempfile
 import time
+from pathlib import Path
 from typing import Optional
 
-from faster_whisper import WhisperModel
+from lightning_whisper_mlx import LightningWhisperMLX
 
 
 class STTEngine:
-    """Wrapper for faster-whisper model."""
+    """Wrapper for lightning-whisper-mlx model."""
 
     def __init__(
         self,
-        model_size: str = "large-v3",  # Use full model for French support
-        device: str = "auto",
-        compute_type: str = "auto",
+        model_size: str = "large-v3",
+        batch_size: int = 6,
+        quant: Optional[str] = None,  # None, "4bit", or "8bit"
     ):
         """Initialize the STT engine.
 
         Args:
-            model_size: Model to use (distil-large-v3, large-v3, etc.)
-            device: Device to run on (auto, cpu, cuda)
-            compute_type: Computation type (auto, float16, int8, etc.)
+            model_size: Model to use (large-v3, distil-large-v3, medium, etc.)
+            batch_size: Batch size for inference (lower for larger models)
+            quant: Quantization level (None, "4bit", "8bit")
         """
         self.model_size = model_size
-        self.model: Optional[WhisperModel] = None
-        self.device = device
-        self.compute_type = compute_type
+        self.batch_size = batch_size
+        self.quant = quant
+        self.model: Optional[LightningWhisperMLX] = None
 
         # Custom vocabulary for initial_prompt
         self.vocabulary: list[str] = ["TEMPEST"]
 
     def load_model(self) -> None:
-        """Load the Whisper model."""
-        print(f"Loading model: {self.model_size} (device={self.device}, compute={self.compute_type})...")
+        """Load the Whisper model and warm up inference."""
+        quant_str = self.quant or "none"
+        print(f"Loading model: {self.model_size} (batch_size={self.batch_size}, quant={quant_str})...")
         start = time.time()
 
-        self.model = WhisperModel(
-            self.model_size,
-            device=self.device,
-            compute_type=self.compute_type,
+        self.model = LightningWhisperMLX(
+            model=self.model_size,
+            batch_size=self.batch_size,
+            quant=self.quant,
         )
 
-        elapsed = time.time() - start
-        # Log actual device/compute used after model loads
-        print(f"Model loaded in {elapsed:.2f}s")
-        print(f"  → Using: device={self.model.model.device}, compute={self.compute_type}")
+        load_time = time.time() - start
+        print(f"Model loaded in {load_time:.2f}s")
+        print(f"  → Using: MLX backend (Apple Silicon GPU)")
+
+        # Warm up inference with a short silent audio
+        print("  → Warming up inference...")
+        warmup_start = time.time()
+        self._warmup_inference()
+        warmup_time = time.time() - warmup_start
+        print(f"  → Warmup complete in {warmup_time:.2f}s")
+
+    def _warmup_inference(self) -> None:
+        """Run a dummy inference to warm up GPU kernels and caches."""
+        import wave
+
+        # Create a minimal valid WAV file (0.1s of silence)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            with wave.open(f.name, "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(16000)
+                wav.writeframes(b"\x00" * 3200)  # 0.1s of silence
+            temp_path = f.name
+
+        try:
+            self.model.transcribe(audio_path=temp_path)
+        except Exception:
+            pass  # Ignore errors on warmup
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
 
     def set_vocabulary(self, words: list[str]) -> None:
         """Set custom vocabulary for biasing transcription."""
         self.vocabulary = words
 
     def _build_initial_prompt(self, language: str | None = None) -> str:
-        """Build initial_prompt from vocabulary.
-
-        The prompt provides context for domain-specific vocabulary without
-        forcing a particular language - auto-detection handles that.
-        """
+        """Build initial_prompt from vocabulary."""
         if not self.vocabulary:
             return ""
-
-        # Simple context prompt that works for any language
         return f"Vocabulary: {', '.join(self.vocabulary)}. "
 
     def transcribe(
@@ -86,50 +108,60 @@ class STTEngine:
         lang_mode = language.upper() if language else "AUTO-DETECT"
         print(f"  [STTEngine] transcribe() called with language={lang_mode}")
 
-        # --- Timing: Audio prep ---
+        # --- Timing: Write audio to temp file ---
         prep_start = time.time()
-        audio_file = io.BytesIO(audio_data)
-        initial_prompt = self._build_initial_prompt(language)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(audio_data)
+            temp_path = f.name
         prep_time = (time.time() - prep_start) * 1000  # ms
 
-        # --- Timing: Model inference (returns generator) ---
-        inference_start = time.time()
-        segments, info = self.model.transcribe(
-            audio_file,
-            language=language,  # None = auto-detect
-            task="transcribe",
-            initial_prompt=initial_prompt if initial_prompt else None,
-            beam_size=1,  # Speed optimization
-            best_of=1,  # Speed optimization
-            vad_filter=True,  # Filter out silence
-            condition_on_previous_text=False,  # Prevent hallucinations
-        )
-        # Note: transcribe() returns immediately with a generator
-        # Actual inference happens when we iterate segments
-        inference_setup_time = (time.time() - inference_start) * 1000  # ms
+        try:
+            # --- Timing: Model inference ---
+            inference_start = time.time()
+            result = self.model.transcribe(
+                audio_path=temp_path,
+                language=language,
+            )
+            inference_time = (time.time() - inference_start) * 1000  # ms
 
-        # --- Timing: Segment iteration (this is where real work happens) ---
-        segment_start = time.time()
-        text_parts = []
-        for segment in segments:
-            text_parts.append(segment.text)
-        segment_time = (time.time() - segment_start) * 1000  # ms
+            full_text = result.get("text", "").strip()
+            detected_language = result.get("language", language or "unknown")
 
-        full_text = "".join(text_parts).strip()
-        total_time = time.time() - total_start
+            # Calculate audio duration from segments
+            segments = result.get("segments", [])
+            # Debug: print actual segment structure
+            if segments:
+                print(f"  [Debug] Last segment: {segments[-1]}")
+            duration = 0
+            if segments:
+                last_segment = segments[-1]
+                if isinstance(last_segment, dict):
+                    duration = last_segment.get("end", 0)
+                elif isinstance(last_segment, (list, tuple)):
+                    # Format is [start, end, text] - end is at index 1
+                    duration = float(last_segment[1]) if len(last_segment) > 1 else 0
 
-        # Detailed timing log
-        print(f"  [Timing] prep={prep_time:.0f}ms | setup={inference_setup_time:.0f}ms | "
-              f"decode={segment_time:.0f}ms | total={total_time*1000:.0f}ms | "
-              f"audio={info.duration:.1f}s")
+            if duration == 0:
+                # Fallback: estimate from WAV size (16-bit mono 16kHz)
+                duration = max(0, (len(audio_data) - 44) / (16000 * 2))
 
-        return {
-            "text": full_text,
-            "language": info.language,
-            "language_probability": info.language_probability,
-            "duration": info.duration,
-            "processing_time": total_time,
-        }
+            total_time = time.time() - total_start
+
+            # Detailed timing log
+            print(f"  [Timing] prep={prep_time:.0f}ms | inference={inference_time:.0f}ms | "
+                  f"total={total_time*1000:.0f}ms | audio={duration:.1f}s")
+
+            return {
+                "text": full_text,
+                "language": detected_language,
+                "language_probability": 1.0,  # MLX doesn't provide this
+                "duration": duration,
+                "processing_time": total_time,
+            }
+
+        finally:
+            # Clean up temp file
+            Path(temp_path).unlink(missing_ok=True)
 
 
 # Singleton instance

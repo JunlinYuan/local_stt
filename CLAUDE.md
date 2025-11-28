@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local speech-to-text web application optimized for Apple Silicon. Uses faster-whisper with large-v3 model for multi-language transcription with auto-detection and custom vocabulary support. Push-to-talk interface (Ctrl+Option) with real-time waveform visualization and debug console.
+Local speech-to-text web application optimized for Apple Silicon. Uses lightning-whisper-mlx with large-v3 model for GPU-accelerated multi-language transcription. Push-to-talk interface with real-time waveform visualization.
 
 ## Commands
 
@@ -30,8 +30,8 @@ cd backend && uv run ruff format .
                                       │        FastAPI Backend (main.py)          │
                                       │                                           │
 Frontend (vanilla JS) ──WebSocket──▶  │  /ws - Audio streaming (browser)         │
-     │                                │  /api/transcribe - HTTP POST (client)    │ ──▶ faster-whisper
-     ├─ Key chord detection           │  /api/settings/* - Settings API          │      STT Engine
+     │                                │  /api/transcribe - HTTP POST (client)    │ ──▶ lightning-whisper-mlx
+     ├─ Key chord detection           │  /api/settings/* - Settings API          │      (Metal GPU)
      ├─ WebAudio recording → WAV      │  Serves static frontend from /static     │
      └─ Waveform visualization        └──────────────────────────────────────────┘
                                                            ▲
@@ -51,10 +51,9 @@ Global Hotkey Client (hotkey_client.py) ───HTTP POST───────�
 
 **STT Engine (`stt_engine.py`):**
 - Singleton pattern via `get_engine()`
-- Model loads on FastAPI lifespan startup
-- Custom vocabulary passed via `initial_prompt` for better term recognition
+- Model loads + warmup on FastAPI lifespan startup
+- Uses Metal GPU via MLX framework
 - Language auto-detection when `language=None` (default)
-- Speed optimizations: `beam_size=1`, `best_of=1`, `vad_filter=True`
 
 ## Key Files
 

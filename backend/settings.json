@@ -1,4 +1,5 @@
 {
   "language": "en",
-  "keybinding": "shift"
+  "keybinding": "shift",
+  "paste_delay": 0
 }

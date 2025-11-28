@@ -2,8 +2,8 @@
 """Global hotkey client for local STT.
 
 Reads keybinding from server settings and listens for that hotkey globally.
-Sends audio to the server (which uses its language setting) and copies
-transcription to clipboard.
+Sends audio to the server (which uses its language setting), copies
+transcription to clipboard, auto-pastes, and restores original clipboard.
 
 Usage:
     uv run --extra client python hotkey_client.py
@@ -13,6 +13,7 @@ import io
 import subprocess
 import sys
 import threading
+import time
 import wave
 from typing import Optional
 
@@ -42,6 +43,7 @@ class HotkeyClient:
         # Settings from server
         self.keybinding = "ctrl"  # Will be fetched from server
         self.language_display = "AUTO"
+        self.paste_delay = 0.5  # Will be fetched from server
 
     def fetch_settings(self) -> bool:
         """Fetch current settings from server."""
@@ -52,6 +54,7 @@ class HotkeyClient:
                 data = response.json()
                 self.keybinding = data.get("keybinding", "ctrl")
                 self.language_display = data.get("language_display", "AUTO")
+                self.paste_delay = data.get("paste_delay", 0.5)
                 return True
         except Exception as e:
             print(f"Failed to fetch settings: {e}")
@@ -68,8 +71,20 @@ class HotkeyClient:
         else:
             return key == keyboard.Key.shift_l or key == keyboard.Key.shift_r
 
-    def copy_to_clipboard(self, text: str) -> bool:
-        """Copy text to clipboard using pbcopy (macOS)."""
+    def get_clipboard(self) -> Optional[str]:
+        """Get current clipboard content (macOS)."""
+        try:
+            result = subprocess.run(
+                ["pbpaste"],
+                capture_output=True,
+                check=True,
+            )
+            return result.stdout.decode("utf-8")
+        except subprocess.CalledProcessError:
+            return None
+
+    def set_clipboard(self, text: str) -> bool:
+        """Set clipboard content (macOS)."""
         try:
             subprocess.run(
                 ["pbcopy"],
@@ -78,8 +93,64 @@ class HotkeyClient:
             )
             return True
         except subprocess.CalledProcessError:
+            return False
+
+    def simulate_paste(self) -> bool:
+        """Simulate Cmd+V paste using AppleScript (macOS)."""
+        try:
+            result = subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    'tell application "System Events" to keystroke "v" using command down',
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            # Common cause: Terminal needs Accessibility permissions
+            print(f"⚠️  Paste failed: {e.stderr.strip() if e.stderr else 'Unknown error'}")
+            print("   → Grant Accessibility access: System Settings → Privacy & Security → Accessibility")
+            return False
+
+    def auto_paste_and_restore(self, text: str) -> bool:
+        """
+        Auto-paste text and restore original clipboard.
+
+        1. Save original clipboard content
+        2. Copy transcribed text to clipboard
+        3. Simulate Cmd+V paste
+        4. Wait for paste_delay
+        5. Restore original clipboard
+        """
+        # Save original clipboard
+        original_clipboard = self.get_clipboard()
+
+        # Copy transcribed text
+        if not self.set_clipboard(text):
             print("Failed to copy to clipboard")
             return False
+
+        # Small delay to ensure clipboard is set
+        time.sleep(0.05)
+
+        # Simulate paste
+        if not self.simulate_paste():
+            # Paste failed (likely permissions), but text IS in clipboard
+            print("📋 Text copied to clipboard (paste manually with Cmd+V)")
+            return False
+
+        # Wait for configurable delay
+        time.sleep(self.paste_delay)
+
+        # Restore original clipboard
+        if original_clipboard is not None:
+            self.set_clipboard(original_clipboard)
+            print("📋 Clipboard restored")
+
+        return True
 
     def audio_callback(
         self,
@@ -172,9 +243,9 @@ class HotkeyClient:
                 print(f"📝 \"{text}\"")
                 print(f"   [{lang}] {duration:.1f}s audio → {proc_time:.2f}s processing")
 
-                # Copy to clipboard
-                if self.copy_to_clipboard(text):
-                    print("📋 Copied to clipboard!")
+                # Auto-paste and restore clipboard
+                if self.auto_paste_and_restore(text):
+                    print("✅ Auto-pasted!")
             else:
                 print("No speech detected")
 
@@ -243,11 +314,12 @@ class HotkeyClient:
 
         print("✅ Connected")
         print()
-        print(f"  Keybinding: {self.get_keybinding_display()}")
-        print(f"  Language:   {self.language_display}")
+        print(f"  Keybinding:   {self.get_keybinding_display()}")
+        print(f"  Language:     {self.language_display}")
+        print(f"  Paste delay:  {self.paste_delay:.1f}s")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
-        print("   Release to transcribe → clipboard")
+        print("   Release to transcribe → auto-paste")
         print()
         print("   (Change settings in web UI: http://127.0.0.1:8000)")
         print("   Press Ctrl+C to exit")

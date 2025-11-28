@@ -701,6 +701,14 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.vocab-display:hover {
+    background: var(--bg-elevated);
 }
 
 .vocab-label {
@@ -710,6 +718,274 @@ body {
 .vocab-terms {
     color: var(--accent-ready);
     font-weight: 500;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vocab-count {
+    padding: 1px 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    font-size: 0.65rem;
+    color: var(--accent-ready);
+    font-weight: 600;
+}
+
+.vocab-expand {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    transition: transform var(--transition-fast);
+}
+
+.vocab-display:hover .vocab-expand {
+    color: var(--accent-ready);
+}
+
+/* ==========================================================================
+   Vocabulary Panel
+   ========================================================================== */
+
+.vocab-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+    z-index: 100;
+}
+
+.vocab-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.vocab-panel {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    width: 100%;
+    max-width: 500px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    z-index: 101;
+    transition: transform var(--transition-slow);
+    box-shadow:
+        0 -10px 60px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(45, 212, 191, 0.05);
+}
+
+.vocab-panel.active {
+    transform: translateX(-50%) translateY(0);
+}
+
+.vocab-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 16px 16px 0 0;
+}
+
+.vocab-panel-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: var(--text-secondary);
+}
+
+.vocab-panel-icon {
+    color: var(--accent-ready);
+    font-size: 1rem;
+}
+
+.vocab-panel-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.vocab-panel-close:hover {
+    background: var(--bg-primary);
+    border-color: var(--accent-recording);
+    color: var(--accent-recording);
+}
+
+.vocab-panel-body {
+    padding: var(--space-lg);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Add Word Input */
+.vocab-add-row {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.vocab-input {
+    flex: 1;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    transition: all var(--transition-fast);
+}
+
+.vocab-input::placeholder {
+    color: var(--text-muted);
+}
+
+.vocab-input:focus {
+    outline: none;
+    border-color: var(--accent-ready);
+    box-shadow: 0 0 20px var(--accent-ready-glow);
+}
+
+.vocab-add-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-ready);
+    border: none;
+    border-radius: 8px;
+    color: var(--bg-primary);
+    font-size: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 0 20px var(--accent-ready-glow);
+}
+
+.vocab-add-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px var(--accent-ready-glow);
+}
+
+.vocab-add-btn:active {
+    transform: scale(0.95);
+}
+
+/* Word List */
+.vocab-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    min-height: 60px;
+}
+
+.vocab-list-empty {
+    width: 100%;
+    padding: var(--space-xl);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.vocab-word {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    animation: wordSlideIn 0.2s ease;
+}
+
+@keyframes wordSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.vocab-word:hover {
+    border-color: var(--border-active);
+}
+
+.vocab-word-text {
+    font-weight: 500;
+    color: var(--accent-ready);
+}
+
+.vocab-word-delete {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.vocab-word-delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--accent-recording);
+    color: var(--accent-recording);
+}
+
+/* File Path Hint */
+.vocab-file-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.file-icon {
+    font-size: 0.8rem;
+}
+
+.file-path {
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 .model-info {

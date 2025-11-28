@@ -68,7 +68,19 @@
                     </button>
                 </div>
 
-                <!-- Paste Delay Slider -->
+                <!-- Clipboard Sync Delay Slider (before paste) -->
+                <div class="paste-delay-control" id="clipboardSyncControl">
+                    <label class="paste-delay-label">
+                        <span class="paste-delay-icon">📋</span>
+                        <span>Clipboard Sync</span>
+                    </label>
+                    <div class="paste-delay-slider">
+                        <input type="range" id="clipboardSyncSlider" min="0.05" max="1" step="0.05" value="0.15">
+                        <span class="paste-delay-value" id="clipboardSyncValue">0.15s</span>
+                    </div>
+                </div>
+
+                <!-- Paste Delay Slider (after paste) -->
                 <div class="paste-delay-control" id="pasteDelayControl">
                     <label class="paste-delay-label">
                         <span class="paste-delay-icon">⏱</span>
@@ -126,15 +138,50 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <div class="vocab-display">
+            <div class="vocab-display" id="vocabToggle" title="Click to manage vocabulary">
                 <span class="vocab-label">VOCABULARY:</span>
-                <span class="vocab-terms" id="vocabTerms">TEMPEST</span>
+                <span class="vocab-terms" id="vocabTerms">—</span>
+                <span class="vocab-count" id="vocabCount">0</span>
+                <span class="vocab-expand">▲</span>
             </div>
             <div class="model-info">
                 <span>large-v3</span>
                 <span class="lang-badge" id="langBadge">AUTO</span>
             </div>
         </footer>
+
+        <!-- Vocabulary Panel (slides up from footer) -->
+        <div class="vocab-panel" id="vocabPanel">
+            <div class="vocab-panel-header">
+                <div class="vocab-panel-title">
+                    <span class="vocab-panel-icon">◈</span>
+                    <span>VOCABULARY BANK</span>
+                </div>
+                <button class="vocab-panel-close" id="vocabPanelClose" title="Close">✕</button>
+            </div>
+            <div class="vocab-panel-body">
+                <!-- Add Word Input -->
+                <div class="vocab-add-row">
+                    <input type="text"
+                           id="vocabInput"
+                           class="vocab-input"
+                           placeholder="Add new word..."
+                           autocomplete="off"
+                           spellcheck="false">
+                    <button class="vocab-add-btn" id="vocabAddBtn" title="Add word">+</button>
+                </div>
+                <!-- Word List -->
+                <div class="vocab-list" id="vocabList">
+                    <!-- Words will be populated here -->
+                </div>
+                <!-- File Path Hint -->
+                <div class="vocab-file-hint" id="vocabFileHint">
+                    <span class="file-icon">📁</span>
+                    <span class="file-path">vocabulary.txt</span>
+                </div>
+            </div>
+        </div>
+        <div class="vocab-overlay" id="vocabOverlay"></div>
 
         <!-- Console Panel -->
         <div class="console-panel" id="consolePanel">

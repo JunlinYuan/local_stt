@@ -5,24 +5,52 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import settings
+import vocabulary
 from stt_engine import get_engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model on startup."""
+    """Load model and vocabulary on startup."""
     engine = get_engine()
+
+    # Initialize vocabulary with callback to update engine
+    def on_vocab_change(words: list[str]):
+        engine.set_vocabulary(words)
+
+    vocab_manager = vocabulary.init_manager(on_change=on_vocab_change)
+    engine.set_vocabulary(vocab_manager.words)  # Initial load
+    vocab_manager.start_watcher()  # Auto-reload on file changes
+
+    # Load model
     engine.load_model()
+
     # Log current settings
     current = settings.get_settings_response()
-    print(f"Settings: Language={current['language_display']}, Keybinding={current['keybinding_display']}", flush=True)
+    print(
+        f"Settings: Language={current['language_display']}, "
+        f"Keybinding={current['keybinding_display']}, "
+        f"Vocabulary={len(vocab_manager.words)} words",
+        flush=True,
+    )
     yield
+
+    # Cleanup
+    vocab_manager.stop_watcher()
 
 
 app = FastAPI(title="Local STT", lifespan=lifespan)
@@ -57,6 +85,7 @@ async def get_settings_schema() -> dict[str, Any]:
 
 class SettingUpdate(BaseModel):
     """Request body for updating a single setting."""
+
     value: Any
 
 
@@ -123,7 +152,10 @@ async def transcribe_audio(file: UploadFile = File(...)):
     detected = result.get("language", "?").upper()
     proc_time = result.get("processing_time", 0)
     text_preview = result.get("text", "")[:50]
-    print(f"← [HTTP] Done in {proc_time:.2f}s [Detected: {detected}] \"{text_preview}...\"", flush=True)
+    print(
+        f'← [HTTP] Done in {proc_time:.2f}s [Detected: {detected}] "{text_preview}..."',
+        flush=True,
+    )
 
     return result
 
@@ -172,19 +204,41 @@ async def websocket_endpoint(websocket: WebSocket):
 # =============================================================================
 
 
+class VocabularyWord(BaseModel):
+    """Request body for adding a single word."""
+
+    word: str
+
+
 @app.get("/api/vocabulary")
 async def get_vocabulary():
     """Get current vocabulary list."""
-    engine = get_engine()
-    return {"vocabulary": engine.vocabulary}
+    manager = vocabulary.get_manager()
+    return {"vocabulary": manager.words, "file": str(vocabulary.VOCABULARY_FILE)}
 
 
 @app.post("/api/vocabulary")
-async def set_vocabulary(words: list[str]):
-    """Set vocabulary list."""
-    engine = get_engine()
-    engine.set_vocabulary(words)
-    return {"vocabulary": engine.vocabulary}
+async def add_vocabulary_word(body: VocabularyWord):
+    """Add a single word to vocabulary (appends to file)."""
+    manager = vocabulary.get_manager()
+    added = manager.add_word(body.word)
+    return {"vocabulary": manager.words, "added": added, "word": body.word}
+
+
+@app.delete("/api/vocabulary")
+async def remove_vocabulary_word(body: VocabularyWord):
+    """Remove a word from vocabulary."""
+    manager = vocabulary.get_manager()
+    removed = manager.remove_word(body.word)
+    return {"vocabulary": manager.words, "removed": removed, "word": body.word}
+
+
+@app.put("/api/vocabulary")
+async def replace_vocabulary(words: list[str]):
+    """Replace entire vocabulary list (for bulk operations)."""
+    manager = vocabulary.get_manager()
+    manager.set_words(words)
+    return {"vocabulary": manager.words}
 
 
 if __name__ == "__main__":

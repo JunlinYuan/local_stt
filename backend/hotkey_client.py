@@ -44,6 +44,7 @@ class HotkeyClient:
         self.keybinding = "ctrl"  # Will be fetched from server
         self.language_display = "AUTO"
         self.paste_delay = 0.5  # Will be fetched from server
+        self.clipboard_sync_delay = 0.15  # Will be fetched from server
 
     def fetch_settings(self) -> bool:
         """Fetch current settings from server."""
@@ -55,6 +56,7 @@ class HotkeyClient:
                 self.keybinding = data.get("keybinding", "ctrl")
                 self.language_display = data.get("language_display", "AUTO")
                 self.paste_delay = data.get("paste_delay", 0.5)
+                self.clipboard_sync_delay = data.get("clipboard_sync_delay", 0.15)
                 return True
         except Exception as e:
             print(f"Failed to fetch settings: {e}")
@@ -133,8 +135,8 @@ class HotkeyClient:
             print("Failed to copy to clipboard")
             return False
 
-        # Small delay to ensure clipboard is set
-        time.sleep(0.05)
+        # Delay to ensure clipboard is fully synced before paste
+        time.sleep(self.clipboard_sync_delay)
 
         # Simulate paste
         if not self.simulate_paste():
@@ -314,9 +316,10 @@ class HotkeyClient:
 
         print("✅ Connected")
         print()
-        print(f"  Keybinding:   {self.get_keybinding_display()}")
-        print(f"  Language:     {self.language_display}")
-        print(f"  Paste delay:  {self.paste_delay:.1f}s")
+        print(f"  Keybinding:       {self.get_keybinding_display()}")
+        print(f"  Language:         {self.language_display}")
+        print(f"  Clipboard sync:   {self.clipboard_sync_delay:.2f}s")
+        print(f"  Paste delay:      {self.paste_delay:.1f}s")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
         print("   Release to transcribe → auto-paste")

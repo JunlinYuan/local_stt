@@ -32,8 +32,8 @@ class STTEngine:
         self.model: Optional[LightningWhisperMLX] = None
         self._model_path: Optional[str] = None  # Path to loaded model weights
 
-        # Custom vocabulary for initial_prompt
-        self.vocabulary: list[str] = ["TEMPEST"]
+        # Custom vocabulary for initial_prompt (loaded from vocabulary.txt)
+        self.vocabulary: list[str] = []
 
     def load_model(self) -> None:
         """Load the Whisper model and warm up inference."""

@@ -46,8 +46,16 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "type": "number",
         "min": 0.0,
         "max": 2.0,
-        "description": "Delay in seconds before restoring clipboard after auto-paste",
+        "description": "Delay after paste before restoring clipboard",
         "display": lambda v: f"{v:.1f}s",
+    },
+    "clipboard_sync_delay": {
+        "default": 0.15,
+        "type": "number",
+        "min": 0.05,
+        "max": 1.0,
+        "description": "Delay before paste to ensure clipboard is synced",
+        "display": lambda v: f"{v:.2f}s",
     },
 }
 

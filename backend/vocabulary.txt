@@ -1,0 +1,5 @@
+# Custom vocabulary for speech-to-text
+# One word/phrase per line, comments start with #
+# Words are case-sensitive (TEMPEST stays TEMPEST)
+
+TEMPEST

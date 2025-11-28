@@ -162,6 +162,7 @@ const state = {
         language: '',
         keybinding: 'ctrl',
         paste_delay: 0.5,
+        clipboard_sync_delay: 0.15,
     },
 };
 
@@ -187,6 +188,8 @@ const elements = {
     keybindToggle: document.getElementById('keybindToggle'),
     pasteDelaySlider: document.getElementById('pasteDelaySlider'),
     pasteDelayValue: document.getElementById('pasteDelayValue'),
+    clipboardSyncSlider: document.getElementById('clipboardSyncSlider'),
+    clipboardSyncValue: document.getElementById('clipboardSyncValue'),
 };
 
 // =============================================================================
@@ -287,6 +290,14 @@ function updateSettingsUI(data) {
     if (elements.pasteDelayValue && data.paste_delay !== undefined) {
         elements.pasteDelayValue.textContent = `${data.paste_delay.toFixed(1)}s`;
     }
+
+    // Update clipboard sync delay slider
+    if (elements.clipboardSyncSlider && data.clipboard_sync_delay !== undefined) {
+        elements.clipboardSyncSlider.value = data.clipboard_sync_delay;
+    }
+    if (elements.clipboardSyncValue && data.clipboard_sync_delay !== undefined) {
+        elements.clipboardSyncValue.textContent = `${data.clipboard_sync_delay.toFixed(2)}s`;
+    }
 }
 
 // =============================================================================
@@ -372,6 +383,25 @@ function initPasteDelaySlider() {
         if (state.isRecording || state.isProcessing) return;
         const value = parseFloat(elements.pasteDelaySlider.value);
         setSetting('paste_delay', value);
+    });
+}
+
+function initClipboardSyncSlider() {
+    if (!elements.clipboardSyncSlider) return;
+
+    // Update display on input (while dragging)
+    elements.clipboardSyncSlider.addEventListener('input', () => {
+        const value = parseFloat(elements.clipboardSyncSlider.value);
+        if (elements.clipboardSyncValue) {
+            elements.clipboardSyncValue.textContent = `${value.toFixed(2)}s`;
+        }
+    });
+
+    // Save setting on change (when released)
+    elements.clipboardSyncSlider.addEventListener('change', () => {
+        if (state.isRecording || state.isProcessing) return;
+        const value = parseFloat(elements.clipboardSyncSlider.value);
+        setSetting('clipboard_sync_delay', value);
     });
 }
 
@@ -656,6 +686,193 @@ function writeString(view, offset, string) {
 }
 
 // =============================================================================
+// Vocabulary Panel
+// =============================================================================
+
+const vocabElements = {
+    toggle: document.getElementById('vocabToggle'),
+    terms: document.getElementById('vocabTerms'),
+    count: document.getElementById('vocabCount'),
+    panel: document.getElementById('vocabPanel'),
+    overlay: document.getElementById('vocabOverlay'),
+    closeBtn: document.getElementById('vocabPanelClose'),
+    input: document.getElementById('vocabInput'),
+    addBtn: document.getElementById('vocabAddBtn'),
+    list: document.getElementById('vocabList'),
+    fileHint: document.getElementById('vocabFileHint'),
+};
+
+let vocabularyWords = [];
+
+async function fetchVocabulary() {
+    try {
+        const response = await fetch('/api/vocabulary');
+        const data = await response.json();
+        vocabularyWords = data.vocabulary || [];
+        updateVocabularyUI();
+
+        // Update file path hint
+        if (data.file && vocabElements.fileHint) {
+            const fileName = data.file.split('/').pop();
+            vocabElements.fileHint.querySelector('.file-path').textContent = fileName;
+        }
+
+        console.log(`Vocabulary loaded: ${vocabularyWords.length} words`);
+    } catch (error) {
+        console.error('Failed to fetch vocabulary:', error);
+    }
+}
+
+async function addVocabularyWord(word) {
+    if (!word.trim()) return;
+
+    try {
+        const response = await fetch('/api/vocabulary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: word.trim() }),
+        });
+        const data = await response.json();
+
+        if (data.added) {
+            vocabularyWords = data.vocabulary;
+            updateVocabularyUI();
+            console.log(`Added vocabulary word: ${word}`);
+        } else {
+            console.log(`Word already exists: ${word}`);
+        }
+    } catch (error) {
+        console.error('Failed to add vocabulary word:', error);
+    }
+}
+
+async function removeVocabularyWord(word) {
+    try {
+        const response = await fetch('/api/vocabulary', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word }),
+        });
+        const data = await response.json();
+
+        if (data.removed) {
+            vocabularyWords = data.vocabulary;
+            updateVocabularyUI();
+            console.log(`Removed vocabulary word: ${word}`);
+        }
+    } catch (error) {
+        console.error('Failed to remove vocabulary word:', error);
+    }
+}
+
+function updateVocabularyUI() {
+    // Update footer display
+    if (vocabElements.terms) {
+        if (vocabularyWords.length === 0) {
+            vocabElements.terms.textContent = '—';
+        } else if (vocabularyWords.length <= 3) {
+            vocabElements.terms.textContent = vocabularyWords.join(', ');
+        } else {
+            vocabElements.terms.textContent = vocabularyWords.slice(0, 2).join(', ') + '...';
+        }
+    }
+
+    if (vocabElements.count) {
+        vocabElements.count.textContent = vocabularyWords.length;
+    }
+
+    // Update panel word list
+    if (vocabElements.list) {
+        if (vocabularyWords.length === 0) {
+            vocabElements.list.innerHTML = '<div class="vocab-list-empty">No vocabulary words yet</div>';
+        } else {
+            vocabElements.list.innerHTML = vocabularyWords.map(word => `
+                <div class="vocab-word" data-word="${escapeAttr(word)}">
+                    <span class="vocab-word-text">${escapeHtml(word)}</span>
+                    <button class="vocab-word-delete" title="Remove">✕</button>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeAttr(text) {
+    return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function openVocabPanel() {
+    vocabElements.panel?.classList.add('active');
+    vocabElements.overlay?.classList.add('active');
+    vocabElements.input?.focus();
+}
+
+function closeVocabPanel() {
+    vocabElements.panel?.classList.remove('active');
+    vocabElements.overlay?.classList.remove('active');
+}
+
+function initVocabularyPanel() {
+    // Toggle panel on footer click
+    vocabElements.toggle?.addEventListener('click', () => {
+        openVocabPanel();
+    });
+
+    // Close panel
+    vocabElements.closeBtn?.addEventListener('click', closeVocabPanel);
+    vocabElements.overlay?.addEventListener('click', closeVocabPanel);
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && vocabElements.panel?.classList.contains('active')) {
+            closeVocabPanel();
+        }
+    });
+
+    // Add word on button click
+    vocabElements.addBtn?.addEventListener('click', () => {
+        const word = vocabElements.input?.value;
+        if (word) {
+            addVocabularyWord(word);
+            vocabElements.input.value = '';
+            vocabElements.input.focus();
+        }
+    });
+
+    // Add word on Enter
+    vocabElements.input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const word = vocabElements.input.value;
+            if (word) {
+                addVocabularyWord(word);
+                vocabElements.input.value = '';
+            }
+        }
+    });
+
+    // Remove word on delete button click (event delegation)
+    vocabElements.list?.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.vocab-word-delete');
+        if (deleteBtn) {
+            const wordEl = deleteBtn.closest('.vocab-word');
+            const word = wordEl?.dataset.word;
+            if (word) {
+                removeVocabularyWord(word);
+            }
+        }
+    });
+
+    // Initial load
+    fetchVocabulary();
+}
+
+// =============================================================================
 // Initialization
 // =============================================================================
 
@@ -667,6 +884,8 @@ async function init() {
     initLanguageSelector();
     initKeybindToggle();
     initPasteDelaySlider();
+    initClipboardSyncSlider();
+    initVocabularyPanel();
 
     // Connect WebSocket
     connectWebSocket();

@@ -1,19 +1,19 @@
 # Local STT
 
-Local speech-to-text application using faster-whisper, optimized for French transcription on Apple Silicon.
+Local speech-to-text application using lightning-whisper-mlx, optimized for Apple Silicon with Metal GPU acceleration.
 
 ## Features
 
-- **Push-to-Talk**: Hold `Ctrl + Option` to record
+- **Push-to-Talk**: Hold `Shift + Option` (or `Ctrl + Option`) to record
 - **Offline**: All processing happens locally
-- **Fast**: Uses faster-whisper with large-v3 model
-- **French-first**: Configured for French with English mixed in
+- **Fast**: Uses MLX with Metal GPU (~1.5-2s for short phrases)
+- **Multi-language**: Auto-detect or specify language (en, fr, zh, ja)
+- **Global Hotkey**: System-wide recording with auto-clipboard
 
 ## Quick Start
 
 ```bash
-cd backend
-./scripts/start.sh
+./start.sh
 ```
 
 Then open http://127.0.0.1:8000
@@ -29,34 +29,41 @@ Then open http://127.0.0.1:8000
 ```
 local_stt/
 ├── backend/
-│   ├── main.py          # FastAPI server
-│   ├── stt_engine.py    # Whisper wrapper
-│   └── pyproject.toml   # Dependencies
+│   ├── main.py           # FastAPI server
+│   ├── stt_engine.py     # MLX Whisper wrapper
+│   ├── settings.py       # Settings schema
+│   └── hotkey_client.py  # Global hotkey daemon
 ├── frontend/
-│   ├── index.html       # Web UI
-│   ├── styles.css       # Styling
-│   └── app.js           # Key detection + audio
+│   ├── index.html        # Web UI
+│   ├── styles.css        # Styling
+│   └── app.js            # Key detection + audio
 ├── scripts/
-│   └── start.sh         # Startup script
+│   ├── start.sh          # Server startup
+│   └── start-client.sh   # Client startup
 └── docs/
-    ├── prd.md           # Requirements
-    └── learnings.md     # Research notes
+    ├── prd.md            # Requirements
+    └── learnings.md      # Research notes
 ```
 
 ## Usage
 
-1. Open the web UI
+### Web UI
+1. Open http://127.0.0.1:8000
 2. Allow microphone access
-3. Hold **Ctrl + Option** together to start recording
+3. Hold **Shift + Option** to record
 4. Release to transcribe
-5. View transcription result
+
+### Global Hotkey Client
+With `./start.sh`, the global client runs alongside the server:
+- Hold hotkey anywhere in macOS to record
+- Release to transcribe and copy to clipboard
+- Requires Accessibility permissions for terminal app
 
 ## Configuration
 
-Edit `backend/stt_engine.py` to change:
-- Model: `large-v3` (default), `distil-large-v3` (faster, English-only)
-- Language: `fr` (default)
-- Custom vocabulary via `initial_prompt`
+Settings managed via web UI or API (`/api/settings`):
+- **Language**: Auto-detect or specific (en, fr, zh, ja)
+- **Keybinding**: Ctrl+Option or Shift+Option
 
 ## License
 

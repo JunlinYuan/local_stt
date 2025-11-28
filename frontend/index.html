@@ -56,14 +56,29 @@
 
         <!-- Main Recording Interface -->
         <main class="main">
-            <!-- Key Binding Toggle -->
-            <div class="keybind-toggle" id="keybindToggle">
-                <button class="keybind-btn active" data-binding="ctrl" title="Ctrl + Option">
-                    <span class="keybind-keys">⌃ + ⌥</span>
-                </button>
-                <button class="keybind-btn" data-binding="shift" title="Shift + Option">
-                    <span class="keybind-keys">⇧ + ⌥</span>
-                </button>
+            <!-- Settings Row: Key Binding + Paste Delay -->
+            <div class="settings-row">
+                <!-- Key Binding Toggle -->
+                <div class="keybind-toggle" id="keybindToggle">
+                    <button class="keybind-btn active" data-binding="ctrl" title="Ctrl + Option">
+                        <span class="keybind-keys">⌃ + ⌥</span>
+                    </button>
+                    <button class="keybind-btn" data-binding="shift" title="Shift + Option">
+                        <span class="keybind-keys">⇧ + ⌥</span>
+                    </button>
+                </div>
+
+                <!-- Paste Delay Slider -->
+                <div class="paste-delay-control" id="pasteDelayControl">
+                    <label class="paste-delay-label">
+                        <span class="paste-delay-icon">⏱</span>
+                        <span>Paste Delay</span>
+                    </label>
+                    <div class="paste-delay-slider">
+                        <input type="range" id="pasteDelaySlider" min="0" max="2" step="0.1" value="0.5">
+                        <span class="paste-delay-value" id="pasteDelayValue">0.5s</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Key Indicators -->

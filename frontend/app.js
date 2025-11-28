@@ -161,6 +161,7 @@ const state = {
     settings: {
         language: '',
         keybinding: 'ctrl',
+        paste_delay: 0.5,
     },
 };
 
@@ -184,6 +185,8 @@ const elements = {
     languageSelector: document.getElementById('languageSelector'),
     languageStatus: document.getElementById('languageStatus'),
     keybindToggle: document.getElementById('keybindToggle'),
+    pasteDelaySlider: document.getElementById('pasteDelaySlider'),
+    pasteDelayValue: document.getElementById('pasteDelayValue'),
 };
 
 // =============================================================================
@@ -276,6 +279,14 @@ function updateSettingsUI(data) {
         const keyName = data.keybinding === 'ctrl' ? 'Ctrl' : 'Shift';
         elements.recHint.textContent = `Hold ${keyName} + Option to record`;
     }
+
+    // Update paste delay slider
+    if (elements.pasteDelaySlider && data.paste_delay !== undefined) {
+        elements.pasteDelaySlider.value = data.paste_delay;
+    }
+    if (elements.pasteDelayValue && data.paste_delay !== undefined) {
+        elements.pasteDelayValue.textContent = `${data.paste_delay.toFixed(1)}s`;
+    }
 }
 
 // =============================================================================
@@ -342,6 +353,25 @@ function initKeybindToggle() {
             if (state.isRecording || state.isProcessing) return;
             setKeybinding(btn.dataset.binding);
         });
+    });
+}
+
+function initPasteDelaySlider() {
+    if (!elements.pasteDelaySlider) return;
+
+    // Update display on input (while dragging)
+    elements.pasteDelaySlider.addEventListener('input', () => {
+        const value = parseFloat(elements.pasteDelaySlider.value);
+        if (elements.pasteDelayValue) {
+            elements.pasteDelayValue.textContent = `${value.toFixed(1)}s`;
+        }
+    });
+
+    // Save setting on change (when released)
+    elements.pasteDelaySlider.addEventListener('change', () => {
+        if (state.isRecording || state.isProcessing) return;
+        const value = parseFloat(elements.pasteDelaySlider.value);
+        setSetting('paste_delay', value);
     });
 }
 
@@ -636,6 +666,7 @@ async function init() {
     // Initialize UI
     initLanguageSelector();
     initKeybindToggle();
+    initPasteDelaySlider();
 
     // Connect WebSocket
     connectWebSocket();

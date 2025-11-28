@@ -41,19 +41,14 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "Modifier key for push-to-talk (+ Option)",
         "display": lambda v: "Ctrl + Option" if v == "ctrl" else "Shift + Option",
     },
-    # Future settings can be added here, e.g.:
-    # "paste_delay": {
-    #     "default": 0.1,
-    #     "type": "number",
-    #     "min": 0,
-    #     "max": 2.0,
-    #     "description": "Delay before paste and clipboard restore",
-    # },
-    # "auto_paste": {
-    #     "default": False,
-    #     "type": "boolean",
-    #     "description": "Automatically paste to active window",
-    # },
+    "paste_delay": {
+        "default": 0.5,
+        "type": "number",
+        "min": 0.0,
+        "max": 2.0,
+        "description": "Delay in seconds before restoring clipboard after auto-paste",
+        "display": lambda v: f"{v:.1f}s",
+    },
 }
 
 
@@ -215,3 +210,8 @@ def get_language() -> str | None:
 def get_keybinding() -> str:
     """Get keybinding setting."""
     return get_setting("keybinding")
+
+
+def get_paste_delay() -> float:
+    """Get paste delay setting in seconds."""
+    return get_setting("paste_delay")

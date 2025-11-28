@@ -1,12 +1,12 @@
 [project]
 name = "local-stt"
 version = "0.1.0"
-description = "Local speech-to-text with faster-whisper"
+description = "Local speech-to-text with lightning-whisper-mlx for Apple Silicon"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "faster-whisper>=1.0.0",
+    "lightning-whisper-mlx>=0.0.10",
     "python-multipart>=0.0.6",
     "websockets>=12.0",
 ]

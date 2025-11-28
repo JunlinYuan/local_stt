@@ -13,6 +13,13 @@ echo "=========================================="
 
 cd "$BACKEND_DIR"
 
+# Kill any existing server on port 8000
+if lsof -ti:8000 > /dev/null 2>&1; then
+    echo "Stopping existing server..."
+    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    sleep 1
+fi
+
 # Check if uv is available
 if ! command -v uv &> /dev/null; then
     echo "Error: uv is not installed. Please install it first:"

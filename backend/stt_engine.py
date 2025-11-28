@@ -33,7 +33,7 @@ class STTEngine:
 
     def load_model(self) -> None:
         """Load the Whisper model."""
-        print(f"Loading model: {self.model_size}...")
+        print(f"Loading model: {self.model_size} (device={self.device}, compute={self.compute_type})...")
         start = time.time()
 
         self.model = WhisperModel(
@@ -43,7 +43,9 @@ class STTEngine:
         )
 
         elapsed = time.time() - start
+        # Log actual device/compute used after model loads
         print(f"Model loaded in {elapsed:.2f}s")
+        print(f"  → Using: device={self.model.model.device}, compute={self.compute_type}")
 
     def set_vocabulary(self, words: list[str]) -> None:
         """Set custom vocabulary for biasing transcription."""
@@ -78,19 +80,20 @@ class STTEngine:
         if self.model is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
-        start = time.time()
+        total_start = time.time()
 
         # Log the language setting being used
         lang_mode = language.upper() if language else "AUTO-DETECT"
         print(f"  [STTEngine] transcribe() called with language={lang_mode}")
 
-        # Create file-like object from bytes
+        # --- Timing: Audio prep ---
+        prep_start = time.time()
         audio_file = io.BytesIO(audio_data)
-
-        # Build initial prompt for vocabulary biasing
         initial_prompt = self._build_initial_prompt(language)
+        prep_time = (time.time() - prep_start) * 1000  # ms
 
-        # Transcribe with speed optimizations
+        # --- Timing: Model inference (returns generator) ---
+        inference_start = time.time()
         segments, info = self.model.transcribe(
             audio_file,
             language=language,  # None = auto-detect
@@ -101,21 +104,31 @@ class STTEngine:
             vad_filter=True,  # Filter out silence
             condition_on_previous_text=False,  # Prevent hallucinations
         )
+        # Note: transcribe() returns immediately with a generator
+        # Actual inference happens when we iterate segments
+        inference_setup_time = (time.time() - inference_start) * 1000  # ms
 
-        # Collect all segments
+        # --- Timing: Segment iteration (this is where real work happens) ---
+        segment_start = time.time()
         text_parts = []
         for segment in segments:
             text_parts.append(segment.text)
+        segment_time = (time.time() - segment_start) * 1000  # ms
 
         full_text = "".join(text_parts).strip()
-        processing_time = time.time() - start
+        total_time = time.time() - total_start
+
+        # Detailed timing log
+        print(f"  [Timing] prep={prep_time:.0f}ms | setup={inference_setup_time:.0f}ms | "
+              f"decode={segment_time:.0f}ms | total={total_time*1000:.0f}ms | "
+              f"audio={info.duration:.1f}s")
 
         return {
             "text": full_text,
             "language": info.language,
             "language_probability": info.language_probability,
             "duration": info.duration,
-            "processing_time": processing_time,
+            "processing_time": total_time,
         }
 
 

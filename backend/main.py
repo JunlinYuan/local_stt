@@ -3,8 +3,9 @@
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -19,7 +20,8 @@ async def lifespan(app: FastAPI):
     engine = get_engine()
     engine.load_model()
     # Log current settings
-    print(f"Settings: Language={settings.get_language_display()}, Keybinding={settings.get_keybinding_display()}", flush=True)
+    current = settings.get_settings_response()
+    print(f"Settings: Language={current['language_display']}, Keybinding={current['keybinding_display']}", flush=True)
     yield
 
 
@@ -41,36 +43,55 @@ async def index():
 # =============================================================================
 
 
-class SettingsResponse(BaseModel):
-    language: str
-    language_display: str
-    keybinding: str
-    keybinding_display: str
-
-
 @app.get("/api/settings")
-async def get_settings() -> SettingsResponse:
-    """Get all settings."""
-    return SettingsResponse(
-        language=settings.get_setting("language"),
-        language_display=settings.get_language_display(),
-        keybinding=settings.get_keybinding(),
-        keybinding_display=settings.get_keybinding_display(),
-    )
+async def get_settings() -> dict[str, Any]:
+    """Get all settings with display values."""
+    return settings.get_settings_response()
 
 
+@app.get("/api/settings/schema")
+async def get_settings_schema() -> dict[str, Any]:
+    """Get settings schema for frontend (types, options, ranges)."""
+    return settings.get_schema()
+
+
+class SettingUpdate(BaseModel):
+    """Request body for updating a single setting."""
+    value: Any
+
+
+@app.put("/api/settings/{key}")
+async def update_setting(key: str, update: SettingUpdate) -> dict[str, Any]:
+    """
+    Update a single setting by key.
+    Returns all settings with updated values.
+    """
+    try:
+        settings.set_setting(key, update.value)
+        return settings.get_settings_response()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Legacy form-based endpoints (for backward compatibility with hotkey client)
 @app.post("/api/settings/language")
 async def update_language(language: str = Form("")):
-    """Update language setting."""
-    settings.set_language(language)
-    return await get_settings()
+    """Update language setting (legacy form endpoint)."""
+    try:
+        settings.set_setting("language", language)
+        return settings.get_settings_response()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/settings/keybinding")
 async def update_keybinding(keybinding: str = Form("ctrl")):
-    """Update keybinding setting."""
-    settings.set_keybinding(keybinding)
-    return await get_settings()
+    """Update keybinding setting (legacy form endpoint)."""
+    try:
+        settings.set_setting("keybinding", keybinding)
+        return settings.get_settings_response()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # =============================================================================
@@ -88,7 +109,8 @@ async def transcribe_audio(file: UploadFile = File(...)):
     audio_data = await file.read()
 
     lang = settings.get_language()
-    lang_display = settings.get_language_display()
+    response = settings.get_settings_response()
+    lang_display = response["language_display"]
 
     print(f"→ [HTTP] Transcribing with language={lang_display}...", flush=True)
 
@@ -121,7 +143,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Use current server settings
             lang = settings.get_language()
-            lang_display = settings.get_language_display()
+            response = settings.get_settings_response()
+            lang_display = response["language_display"]
 
             print(f"→ [WS] Transcribing with language={lang_display}...", flush=True)
 

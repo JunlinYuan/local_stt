@@ -36,33 +36,35 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-# Check if server is already running
-if curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
-    echo "Server already running at http://127.0.0.1:8000"
-else
-    echo "Starting server..."
-    # Clear old log and start server with unbuffered Python output
-    > "$LOG_FILE"
-    PYTHONUNBUFFERED=1 uv run uvicorn main:app --host 127.0.0.1 --port 8000 >> "$LOG_FILE" 2>&1 &
-    SERVER_PID=$!
+# Kill any existing server on port 8000 for a clean start
+if lsof -ti:8000 > /dev/null 2>&1; then
+    echo "Stopping existing server..."
+    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    sleep 1
+fi
 
-    # Wait for server to be ready
-    echo -n "Waiting for server"
-    for i in {1..30}; do
-        if curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
-            echo " ready!"
-            break
-        fi
-        echo -n "."
-        sleep 1
-    done
+echo "Starting server..."
+# Clear old log and start server with unbuffered Python output
+> "$LOG_FILE"
+PYTHONUNBUFFERED=1 uv run uvicorn main:app --host 127.0.0.1 --port 8000 >> "$LOG_FILE" 2>&1 &
+SERVER_PID=$!
 
-    if ! curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
-        echo " failed!"
-        echo "Server log:"
-        cat "$LOG_FILE"
-        exit 1
+# Wait for server to be ready
+echo -n "Waiting for server"
+for i in {1..30}; do
+    if curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
+        echo " ready!"
+        break
     fi
+    echo -n "."
+    sleep 1
+done
+
+if ! curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
+    echo " failed!"
+    echo "Server log:"
+    cat "$LOG_FILE"
+    exit 1
 fi
 
 echo ""

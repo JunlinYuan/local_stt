@@ -31,13 +31,13 @@ cd backend && uv run ruff format .
                                       │                                           │
 Frontend (vanilla JS) ──WebSocket──▶  │  /ws - Audio streaming (browser)         │
      │                                │  /api/transcribe - HTTP POST (client)    │ ──▶ faster-whisper
-     ├─ Key chord detection           │  /api/vocabulary - GET/POST vocabulary   │      STT Engine
+     ├─ Key chord detection           │  /api/settings/* - Settings API          │      STT Engine
      ├─ WebAudio recording → WAV      │  Serves static frontend from /static     │
      └─ Waveform visualization        └──────────────────────────────────────────┘
                                                            ▲
 Global Hotkey Client (hotkey_client.py) ───HTTP POST───────┘
      │
-     ├─ System-wide Ctrl+Opt detection (pynput)
+     ├─ System-wide hotkey detection (pynput)
      ├─ Audio recording (sounddevice)
      └─ Auto-copy to clipboard (pbcopy)
 ```
@@ -62,6 +62,7 @@ Global Hotkey Client (hotkey_client.py) ───HTTP POST───────�
 |------|---------|
 | `backend/main.py` | FastAPI app, WebSocket handler, HTTP transcribe API |
 | `backend/stt_engine.py` | Whisper model wrapper, transcription logic |
+| `backend/settings.py` | Schema-driven settings system (add new settings here) |
 | `backend/hotkey_client.py` | Global hotkey daemon, audio recording, clipboard |
 | `frontend/app.js` | Key detection, audio recording, WebSocket client |
 | `docs/prd.md` | Full requirements and technical decisions |
@@ -69,11 +70,17 @@ Global Hotkey Client (hotkey_client.py) ───HTTP POST───────�
 
 ## Configuration
 
-- **Model**: `large-v3` (configurable in `STTEngine.__init__`)
-- **Language**: Auto-detect (default), or specify code like `"en"`, `"fr"`
-- **Vocabulary**: `["TEMPEST"]` - extend via API or `stt_engine.py`
-- **Push-to-talk**: Ctrl+Option chord
-- **Console panel**: Collapsible debug panel shows console.log/warn/error with timestamps
+Settings stored in `backend/settings.json`, managed via web UI or API.
+
+**To add a new setting:** Add entry to `SETTINGS_SCHEMA` in `settings.py` with `default`, `type`, and optional `options`/`min`/`max`. API and UI handle it automatically.
+
+**Current settings:**
+- `language`: `""` (auto-detect), `"en"`, `"fr"`, `"zh"`, `"ja"`
+- `keybinding`: `"ctrl"` or `"shift"` (+ Option)
+
+**Fixed config (in code):**
+- Model: `large-v3`
+- Vocabulary: `["TEMPEST"]` - extend via `/api/vocabulary`
 
 ## Usage Modes
 

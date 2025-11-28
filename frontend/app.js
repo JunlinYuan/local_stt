@@ -187,17 +187,19 @@ const elements = {
 };
 
 // =============================================================================
-// Settings API
+// Settings API (schema-driven, extendable)
 // =============================================================================
 
 async function fetchSettings() {
     try {
         const response = await fetch('/api/settings');
         const data = await response.json();
-        state.settings = {
-            language: data.language,
-            keybinding: data.keybinding,
-        };
+        // Store all settings dynamically
+        for (const key of Object.keys(data)) {
+            if (!key.endsWith('_display')) {
+                state.settings[key] = data[key];
+            }
+        }
         updateSettingsUI(data);
         console.log(`Settings loaded: Language=${data.language_display}, Keybinding=${data.keybinding_display}`);
     } catch (error) {
@@ -205,39 +207,35 @@ async function fetchSettings() {
     }
 }
 
-async function setLanguage(language) {
+/**
+ * Generic setting update function.
+ * @param {string} key - Setting key (e.g., 'language', 'keybinding')
+ * @param {any} value - New value
+ */
+async function setSetting(key, value) {
     try {
-        const formData = new FormData();
-        formData.append('language', language);
-        const response = await fetch('/api/settings/language', {
-            method: 'POST',
-            body: formData,
+        const response = await fetch(`/api/settings/${key}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value }),
         });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to update setting');
+        }
         const data = await response.json();
-        state.settings.language = data.language;
+        // Update local state
+        state.settings[key] = data[key];
         updateSettingsUI(data);
-        console.log(`Language changed to: ${data.language_display}`);
+        console.log(`${key} changed to: ${data[`${key}_display`]}`);
     } catch (error) {
-        console.error('Failed to set language:', error);
+        console.error(`Failed to set ${key}:`, error);
     }
 }
 
-async function setKeybinding(keybinding) {
-    try {
-        const formData = new FormData();
-        formData.append('keybinding', keybinding);
-        const response = await fetch('/api/settings/keybinding', {
-            method: 'POST',
-            body: formData,
-        });
-        const data = await response.json();
-        state.settings.keybinding = data.keybinding;
-        updateSettingsUI(data);
-        console.log(`Keybinding changed to: ${data.keybinding_display}`);
-    } catch (error) {
-        console.error('Failed to set keybinding:', error);
-    }
-}
+// Convenience wrappers for existing UI
+const setLanguage = (language) => setSetting('language', language);
+const setKeybinding = (keybinding) => setSetting('keybinding', keybinding);
 
 function updateSettingsUI(data) {
     // Update language selector

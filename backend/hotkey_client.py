@@ -22,6 +22,64 @@ import numpy as np
 import sounddevice as sd
 from pynput import keyboard
 
+from pathlib import Path
+
+
+class RecordingIndicator:
+    """Screen edge overlay that shows when recording is active.
+
+    Runs as a subprocess because macOS requires tkinter on main thread.
+    """
+
+    def __init__(self, border_width: int = 6, color: str = "#FF3B30"):
+        self.border_width = border_width
+        self.color = color
+        self._process: Optional[subprocess.Popen] = None
+        self._script_path = Path(__file__).parent / "scripts" / "recording_indicator.py"
+
+    def show(self):
+        """Show the recording indicator by spawning subprocess."""
+        if self._process is not None:
+            return  # Already showing
+
+        if not self._script_path.exists():
+            return  # Script not found
+
+        try:
+            self._process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(self._script_path),
+                    str(self.border_width),
+                    self.color,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            pass  # Non-critical, just skip indicator
+
+    def hide(self):
+        """Hide the recording indicator by terminating subprocess."""
+        if self._process is None:
+            return
+
+        try:
+            self._process.terminate()
+            self._process.wait(timeout=1.0)
+        except Exception:
+            try:
+                self._process.kill()
+            except Exception:
+                pass
+        finally:
+            self._process = None
+
+    def is_available(self) -> bool:
+        """Check if indicator script exists."""
+        return self._script_path.exists()
+
+
 # Configuration
 SERVER_URL = "http://127.0.0.1:8000"
 SAMPLE_RATE = 16000
@@ -47,6 +105,9 @@ class HotkeyClient:
         self.paste_delay = 0.5  # Will be fetched from server
         self.clipboard_sync_delay = 0.15  # Will be fetched from server
         self.min_recording_duration = 0.3  # Will be fetched from server
+
+        # Visual recording indicator (red screen border)
+        self.indicator = RecordingIndicator()
 
     def fetch_settings(self) -> bool:
         """Fetch current settings from server."""
@@ -127,8 +188,12 @@ class HotkeyClient:
             return True
         except subprocess.CalledProcessError as e:
             # Common cause: Terminal needs Accessibility permissions
-            print(f"⚠️  Paste failed: {e.stderr.strip() if e.stderr else 'Unknown error'}")
-            print("   → Grant Accessibility access: System Settings → Privacy & Security → Accessibility")
+            print(
+                f"⚠️  Paste failed: {e.stderr.strip() if e.stderr else 'Unknown error'}"
+            )
+            print(
+                "   → Grant Accessibility access: System Settings → Privacy & Security → Accessibility"
+            )
             return False
 
     def auto_paste_and_restore(self, text: str) -> bool:
@@ -191,6 +256,9 @@ class HotkeyClient:
             self.recording_start_time = time.time()
             self.audio_data = []
 
+            # Show visual indicator
+            self.indicator.show()
+
             print("🎤 Recording... (release keys to stop)")
 
             # Notify web UI
@@ -223,6 +291,9 @@ class HotkeyClient:
 
             self.is_recording = False
             recording_duration = time.time() - self.recording_start_time
+
+            # Hide visual indicator
+            self.indicator.hide()
 
             if self.stream:
                 self.stream.stop()
@@ -281,8 +352,10 @@ class HotkeyClient:
                 duration = result.get("duration", 0)
                 proc_time = result.get("processing_time", 0)
 
-                print(f"📝 \"{text}\"")
-                print(f"   [{lang}] {duration:.1f}s audio → {proc_time:.2f}s processing")
+                print(f'📝 "{text}"')
+                print(
+                    f"   [{lang}] {duration:.1f}s audio → {proc_time:.2f}s processing"
+                )
 
                 # Auto-paste and restore clipboard
                 if self.auto_paste_and_restore(text):
@@ -321,7 +394,9 @@ class HotkeyClient:
                 self.opt_pressed = False
 
             # Stop recording when either key released
-            if self.is_recording and (not self.modifier_pressed or not self.opt_pressed):
+            if self.is_recording and (
+                not self.modifier_pressed or not self.opt_pressed
+            ):
                 self.stop_recording()
         except Exception:
             pass
@@ -354,12 +429,21 @@ class HotkeyClient:
             sys.exit(1)
 
         print("✅ Connected")
+
+        # Check visual recording indicator availability
+        indicator_status = (
+            "enabled"
+            if self.indicator.is_available()
+            else "disabled (script not found)"
+        )
+
         print()
         print(f"  Keybinding:       {self.get_keybinding_display()}")
         print(f"  Language:         {self.language_display}")
         print(f"  Clipboard sync:   {self.clipboard_sync_delay:.2f}s")
         print(f"  Paste delay:      {self.paste_delay:.1f}s")
         print(f"  Min duration:     {self.min_recording_duration:.1f}s")
+        print(f"  Screen indicator: {indicator_status}")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
         print("   Release to transcribe → auto-paste")

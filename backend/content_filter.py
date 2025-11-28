@@ -1,10 +1,59 @@
-"""Content filter for detecting likely misrecognized profanity."""
+"""Content filter for detecting likely misrecognized profanity and hallucinations."""
 
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
 from better_profanity import profanity
+
+# Known Whisper hallucination phrases (when audio is silent/quiet)
+# These are filtered only when they constitute the ENTIRE transcription
+HALLUCINATION_PHRASES = {
+    # English
+    "thank you",
+    "thank you.",
+    "thanks",
+    "thanks.",
+    "thanks for watching",
+    "thanks for watching.",
+    "thanks for listening",
+    "thanks for listening.",
+    "thank you for watching",
+    "thank you for watching.",
+    "thank you for listening",
+    "thank you for listening.",
+    "like and subscribe",
+    "like and subscribe.",
+    "subscribe",
+    "subscribe.",
+    "see you next time",
+    "see you next time.",
+    "bye",
+    "bye.",
+    "goodbye",
+    "goodbye.",
+    "see you",
+    "see you.",
+    # Chinese
+    "謝謝",
+    "谢谢",
+    "謝謝觀看",
+    "谢谢观看",
+    # Japanese
+    "ありがとう",
+    "ありがとうございます",
+    "ご視聴ありがとうございました",
+    # French
+    "merci",
+    "merci.",
+    "merci d'avoir regardé",
+    # Other common ones
+    "...",
+    "…",
+    "you",
+    "you.",
+}
 
 # Set up logging for detected profanity (helps spot patterns)
 _log_path = Path(__file__).parent / "filter_log.txt"
@@ -49,6 +98,24 @@ class ContentFilter:
         """Check if text contains profanity."""
         return profanity.contains_profanity(text)
 
+    def is_hallucination(self, text: str) -> bool:
+        """Check if text is a known Whisper hallucination.
+
+        Only returns True if the ENTIRE text is a hallucination phrase.
+        """
+        normalized = text.strip().lower()
+        return normalized in HALLUCINATION_PHRASES
+
+    def filter_hallucination(self, text: str) -> str:
+        """Filter out hallucination phrases.
+
+        Returns empty string if text is a hallucination, otherwise returns original.
+        """
+        if self.is_hallucination(text):
+            print(f"  [ContentFilter] Filtered hallucination: {text!r}")
+            return ""
+        return text
+
     def filter(self, text: str) -> str:
         """Filter profanity from text.
 
@@ -65,7 +132,6 @@ class ContentFilter:
         filtered = profanity.censor(text, censor_char="")
 
         # Clean up multiple spaces from removed words
-        import re
         filtered = re.sub(r"\s+", " ", filtered).strip()
 
         # If replacement is specified, the library already handles it

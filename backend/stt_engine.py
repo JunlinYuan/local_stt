@@ -6,11 +6,36 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 from lightning_whisper_mlx import LightningWhisperMLX
 from lightning_whisper_mlx.transcribe import transcribe_audio
 
 from content_filter import get_filter
-from settings import get_setting
+from settings import get_min_volume_rms, get_setting
+
+
+def calculate_audio_rms(audio_data: bytes) -> float:
+    """Calculate RMS (root mean square) volume of WAV audio data.
+
+    Args:
+        audio_data: Raw WAV file bytes (with 44-byte header)
+
+    Returns:
+        RMS value (0 = silence, higher = louder)
+    """
+    # Skip WAV header (44 bytes) and read as 16-bit signed integers
+    if len(audio_data) <= 44:
+        return 0.0
+
+    # Parse audio samples (16-bit little-endian signed)
+    samples = np.frombuffer(audio_data[44:], dtype=np.int16)
+
+    if len(samples) == 0:
+        return 0.0
+
+    # Calculate RMS
+    rms = np.sqrt(np.mean(samples.astype(np.float64) ** 2))
+    return float(rms)
 
 
 class STTEngine:
@@ -127,6 +152,25 @@ class STTEngine:
         # Log the language setting being used
         lang_mode = language.upper() if language else "AUTO-DETECT"
         print(f"  [STTEngine] transcribe() called with language={lang_mode}")
+
+        # --- Volume check: skip transcription if audio too quiet ---
+        min_rms = get_min_volume_rms()
+        if min_rms > 0:
+            audio_rms = calculate_audio_rms(audio_data)
+            print(f"  [STTEngine] Audio RMS: {audio_rms:.0f} (threshold: {min_rms})")
+
+            if audio_rms < min_rms:
+                print("  [STTEngine] Audio too quiet, skipping transcription")
+                # Estimate duration from WAV size (16-bit mono 16kHz)
+                duration = max(0, (len(audio_data) - 44) / (16000 * 2))
+                return {
+                    "text": "",
+                    "language": language or "unknown",
+                    "language_probability": 0.0,
+                    "duration": duration,
+                    "processing_time": time.time() - total_start,
+                    "skipped": "low_volume",
+                }
 
         # --- Timing: Write audio to temp file ---
         prep_start = time.time()

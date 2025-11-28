@@ -71,6 +71,14 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "Minimum recording duration to avoid accidental taps",
         "display": lambda v: f"{v:.1f}s",
     },
+    "min_volume_rms": {
+        "default": 100,
+        "type": "number",
+        "min": 0,
+        "max": 500,
+        "description": "Minimum audio volume (RMS) to trigger transcription. Set to 0 to disable.",
+        "display": lambda v: "Off" if v == 0 else str(int(v)),
+    },
 }
 
 
@@ -242,3 +250,8 @@ def get_paste_delay() -> float:
 def get_min_recording_duration() -> float:
     """Get minimum recording duration in seconds."""
     return get_setting("min_recording_duration")
+
+
+def get_min_volume_rms() -> int:
+    """Get minimum volume RMS threshold (0 = disabled)."""
+    return int(get_setting("min_volume_rms"))

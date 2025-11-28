@@ -1,6 +1,7 @@
 /**
- * Local STT - Frontend Application
- * Handles key chord detection, audio recording, and WebSocket communication
+ * Local STT - Web UI
+ * Display panel for status + settings changes
+ * All settings are stored on server and shared with global hotkey client
  */
 
 // =============================================================================
@@ -13,12 +14,10 @@ const consoleLogger = {
     errorCount: 0,
 
     init() {
-        // Store original console methods
         this.originalLog = console.log;
         this.originalWarn = console.warn;
         this.originalError = console.error;
 
-        // Override console methods
         console.log = (...args) => {
             this.addLog('info', args);
             this.originalLog.apply(console, args);
@@ -34,16 +33,10 @@ const consoleLogger = {
             this.originalError.apply(console, args);
         };
 
-        // Capture uncaught errors
         window.addEventListener('error', (event) => {
-            this.addLog('error', [`Uncaught: ${event.message} at ${event.filename}:${event.lineno}`]);
+            this.addLog('error', [`Uncaught: ${event.message}`]);
         });
 
-        window.addEventListener('unhandledrejection', (event) => {
-            this.addLog('error', [`Unhandled Promise: ${event.reason}`]);
-        });
-
-        // Set up UI handlers after DOM ready
         this.setupUI();
     },
 
@@ -79,31 +72,16 @@ const consoleLogger = {
     addLog(type, args) {
         const message = args.map(arg => {
             if (typeof arg === 'object') {
-                try {
-                    return JSON.stringify(arg, null, 2);
-                } catch {
-                    return String(arg);
-                }
+                try { return JSON.stringify(arg, null, 2); }
+                catch { return String(arg); }
             }
             return String(arg);
         }).join(' ');
 
-        const entry = {
-            type,
-            message,
-            time: new Date(),
-        };
+        this.logs.push({ type, message, time: new Date() });
 
-        this.logs.push(entry);
-
-        // Keep logs under limit
-        if (this.logs.length > this.maxLogs) {
-            this.logs.shift();
-        }
-
-        if (type === 'error') {
-            this.errorCount++;
-        }
+        if (this.logs.length > this.maxLogs) this.logs.shift();
+        if (type === 'error') this.errorCount++;
 
         this.render();
     },
@@ -116,10 +94,7 @@ const consoleLogger = {
 
     formatTime(date) {
         return date.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
+            hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
     },
 
@@ -140,21 +115,12 @@ const consoleLogger = {
                     <span class="log-message">${this.escapeHtml(log.message)}</span>
                 </div>
             `).join('');
-
-            // Auto-scroll to bottom
             logsContainer.scrollTop = logsContainer.scrollHeight;
         }
 
-        if (countBadge) {
-            countBadge.textContent = this.logs.length;
-        }
-
+        if (countBadge) countBadge.textContent = this.logs.length;
         if (consolePanel) {
-            if (this.errorCount > 0) {
-                consolePanel.classList.add('has-errors');
-            } else {
-                consolePanel.classList.remove('has-errors');
-            }
+            consolePanel.classList.toggle('has-errors', this.errorCount > 0);
         }
     },
 
@@ -165,19 +131,18 @@ const consoleLogger = {
     },
 };
 
-// Initialize console logger immediately
 consoleLogger.init();
 
 // =============================================================================
-// State Management
+// State
 // =============================================================================
 
 const state = {
-    // Key states
-    ctrlPressed: false,
+    // Keys
+    modifierPressed: false,
     optPressed: false,
 
-    // Recording state
+    // Recording
     isRecording: false,
     isProcessing: false,
 
@@ -191,6 +156,12 @@ const state = {
     // WebSocket
     ws: null,
     wsConnected: false,
+
+    // Settings (from server)
+    settings: {
+        language: '',
+        keybinding: 'ctrl',
+    },
 };
 
 // =============================================================================
@@ -198,10 +169,10 @@ const state = {
 // =============================================================================
 
 const elements = {
-    ctrlKey: document.getElementById('ctrlKey'),
+    modifierKey: document.getElementById('modifierKey'),
+    modifierLabel: document.getElementById('modifierLabel'),
     optKey: document.getElementById('optKey'),
     recordingPanel: document.getElementById('recordingPanel'),
-    recIndicator: document.getElementById('recIndicator'),
     recLabel: document.getElementById('recLabel'),
     recHint: document.getElementById('recHint'),
     waveformContainer: document.getElementById('waveformContainer'),
@@ -209,9 +180,105 @@ const elements = {
     transcriptContent: document.getElementById('transcriptContent'),
     transcriptMeta: document.getElementById('transcriptMeta'),
     connectionStatus: document.getElementById('connectionStatus'),
-    vocabTerms: document.getElementById('vocabTerms'),
     langBadge: document.getElementById('langBadge'),
+    languageSelector: document.getElementById('languageSelector'),
+    languageStatus: document.getElementById('languageStatus'),
+    keybindToggle: document.getElementById('keybindToggle'),
 };
+
+// =============================================================================
+// Settings API
+// =============================================================================
+
+async function fetchSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+        state.settings = {
+            language: data.language,
+            keybinding: data.keybinding,
+        };
+        updateSettingsUI(data);
+        console.log(`Settings loaded: Language=${data.language_display}, Keybinding=${data.keybinding_display}`);
+    } catch (error) {
+        console.error('Failed to fetch settings:', error);
+    }
+}
+
+async function setLanguage(language) {
+    try {
+        const formData = new FormData();
+        formData.append('language', language);
+        const response = await fetch('/api/settings/language', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+        state.settings.language = data.language;
+        updateSettingsUI(data);
+        console.log(`Language changed to: ${data.language_display}`);
+    } catch (error) {
+        console.error('Failed to set language:', error);
+    }
+}
+
+async function setKeybinding(keybinding) {
+    try {
+        const formData = new FormData();
+        formData.append('keybinding', keybinding);
+        const response = await fetch('/api/settings/keybinding', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+        state.settings.keybinding = data.keybinding;
+        updateSettingsUI(data);
+        console.log(`Keybinding changed to: ${data.keybinding_display}`);
+    } catch (error) {
+        console.error('Failed to set keybinding:', error);
+    }
+}
+
+function updateSettingsUI(data) {
+    // Update language selector
+    if (elements.languageSelector) {
+        const buttons = elements.languageSelector.querySelectorAll('.lang-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === data.language);
+        });
+    }
+
+    // Update language status
+    if (elements.languageStatus) {
+        elements.languageStatus.textContent = data.language
+            ? `${data.language_display} mode`
+            : 'Auto-detect enabled';
+    }
+
+    // Update footer badge
+    if (elements.langBadge) {
+        elements.langBadge.textContent = data.language_display;
+    }
+
+    // Update keybinding toggle
+    if (elements.keybindToggle) {
+        const buttons = elements.keybindToggle.querySelectorAll('.keybind-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.binding === data.keybinding);
+        });
+    }
+
+    // Update key indicator label
+    if (elements.modifierLabel) {
+        elements.modifierLabel.textContent = data.keybinding === 'ctrl' ? 'CTRL' : 'SHIFT';
+    }
+
+    // Update hint text
+    if (elements.recHint && !state.isRecording) {
+        const keyName = data.keybinding === 'ctrl' ? 'Ctrl' : 'Shift';
+        elements.recHint.textContent = `Hold ${keyName} + Option to record`;
+    }
+}
 
 // =============================================================================
 // WebSocket Connection
@@ -222,13 +289,12 @@ function connectWebSocket() {
     state.ws = new WebSocket(wsUrl);
 
     state.ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('Connected to server');
         state.wsConnected = true;
         updateConnectionStatus(true);
     };
 
     state.ws.onclose = () => {
-        console.log('WebSocket disconnected');
         state.wsConnected = false;
         updateConnectionStatus(false);
         // Reconnect after delay
@@ -236,7 +302,7 @@ function connectWebSocket() {
     };
 
     state.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('WebSocket error');
     };
 
     state.ws.onmessage = (event) => {
@@ -256,64 +322,96 @@ function updateConnectionStatus(connected) {
 }
 
 // =============================================================================
-// Key Detection (Chord: Ctrl + Option)
+// UI Event Handlers
 // =============================================================================
 
+function initLanguageSelector() {
+    if (!elements.languageSelector) return;
+
+    elements.languageSelector.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (state.isRecording || state.isProcessing) return;
+            setLanguage(btn.dataset.lang);
+        });
+    });
+}
+
+function initKeybindToggle() {
+    if (!elements.keybindToggle) return;
+
+    elements.keybindToggle.querySelectorAll('.keybind-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (state.isRecording || state.isProcessing) return;
+            setKeybinding(btn.dataset.binding);
+        });
+    });
+}
+
+// =============================================================================
+// Key Detection
+// =============================================================================
+
+function isModifierKey(event) {
+    if (state.settings.keybinding === 'ctrl') {
+        return event.key === 'Control';
+    } else {
+        return event.key === 'Shift';
+    }
+}
+
 function handleKeyDown(event) {
-    // Track Control key (event.ctrlKey on Mac is actually Ctrl, not Cmd)
-    if (event.key === 'Control') {
-        state.ctrlPressed = true;
-        elements.ctrlKey.classList.add('pressed');
-        elements.ctrlKey.querySelector('.key-status').textContent = 'HELD';
+    if (isModifierKey(event)) {
+        state.modifierPressed = true;
+        elements.modifierKey?.classList.add('pressed');
+        const modStatus = elements.modifierKey?.querySelector('.key-status');
+        if (modStatus) modStatus.textContent = 'HELD';
     }
 
-    // Track Option/Alt key
     if (event.key === 'Alt') {
         state.optPressed = true;
-        elements.optKey.classList.add('pressed');
-        elements.optKey.querySelector('.key-status').textContent = 'HELD';
+        elements.optKey?.classList.add('pressed');
+        const optStatus = elements.optKey?.querySelector('.key-status');
+        if (optStatus) optStatus.textContent = 'HELD';
     }
 
-    // Check if both keys are pressed → start recording
-    if (state.ctrlPressed && state.optPressed && !state.isRecording && !state.isProcessing) {
+    if (state.modifierPressed && state.optPressed && !state.isRecording && !state.isProcessing) {
         startRecording();
     }
 
-    // Prevent default for our key combo
-    if (state.ctrlPressed && state.optPressed) {
+    if (state.modifierPressed && state.optPressed) {
         event.preventDefault();
     }
 }
 
 function handleKeyUp(event) {
-    // Track Control key release
-    if (event.key === 'Control') {
-        state.ctrlPressed = false;
-        elements.ctrlKey.classList.remove('pressed');
-        elements.ctrlKey.querySelector('.key-status').textContent = '—';
+    if (isModifierKey(event)) {
+        state.modifierPressed = false;
+        elements.modifierKey?.classList.remove('pressed');
+        const modStatus = elements.modifierKey?.querySelector('.key-status');
+        if (modStatus) modStatus.textContent = '—';
     }
 
-    // Track Option/Alt key release
     if (event.key === 'Alt') {
         state.optPressed = false;
-        elements.optKey.classList.remove('pressed');
-        elements.optKey.querySelector('.key-status').textContent = '—';
+        elements.optKey?.classList.remove('pressed');
+        const optStatus = elements.optKey?.querySelector('.key-status');
+        if (optStatus) optStatus.textContent = '—';
     }
 
-    // If either key is released while recording → stop recording
-    if (state.isRecording && (!state.ctrlPressed || !state.optPressed)) {
+    if (state.isRecording && (!state.modifierPressed || !state.optPressed)) {
         stopRecording();
     }
 }
 
-// Handle window blur (keys might be released while window not focused)
 function handleBlur() {
-    state.ctrlPressed = false;
+    state.modifierPressed = false;
     state.optPressed = false;
-    elements.ctrlKey.classList.remove('pressed');
-    elements.optKey.classList.remove('pressed');
-    elements.ctrlKey.querySelector('.key-status').textContent = '—';
-    elements.optKey.querySelector('.key-status').textContent = '—';
+    elements.modifierKey?.classList.remove('pressed');
+    elements.optKey?.classList.remove('pressed');
+    const modStatus = elements.modifierKey?.querySelector('.key-status');
+    const optStatus = elements.optKey?.querySelector('.key-status');
+    if (modStatus) modStatus.textContent = '—';
+    if (optStatus) optStatus.textContent = '—';
 
     if (state.isRecording) {
         stopRecording();
@@ -327,15 +425,9 @@ function handleBlur() {
 async function initAudio() {
     try {
         state.mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                channelCount: 1,
-                sampleRate: 16000,
-                echoCancellation: true,
-                noiseSuppression: true,
-            }
+            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
         });
 
-        // Set up audio context for visualization
         state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         state.analyser = state.audioContext.createAnalyser();
         state.analyser.fftSize = 256;
@@ -353,7 +445,6 @@ async function initAudio() {
 }
 
 async function startRecording() {
-    // Initialize audio on first recording attempt
     if (!state.mediaStream) {
         const success = await initAudio();
         if (!success) return;
@@ -362,14 +453,12 @@ async function startRecording() {
     state.isRecording = true;
     state.audioChunks = [];
 
-    // Update UI
-    elements.recordingPanel.classList.add('recording');
-    elements.recordingPanel.classList.remove('processing');
+    elements.recordingPanel?.classList.add('recording');
+    elements.recordingPanel?.classList.remove('processing');
     elements.recLabel.textContent = 'RECORDING';
     elements.recHint.textContent = 'Release keys to transcribe';
-    elements.waveformContainer.classList.add('active');
+    elements.waveformContainer?.classList.add('active');
 
-    // Start media recorder
     state.mediaRecorder = new MediaRecorder(state.mediaStream, {
         mimeType: 'audio/webm;codecs=opus'
     });
@@ -380,54 +469,42 @@ async function startRecording() {
         }
     };
 
-    state.mediaRecorder.start(100); // Collect data every 100ms
-
-    // Start waveform visualization
+    state.mediaRecorder.start(100);
     drawWaveform();
-
     console.log('Recording started');
 }
 
 async function stopRecording() {
-    if (!state.mediaRecorder || state.mediaRecorder.state === 'inactive') {
-        return;
-    }
+    if (!state.mediaRecorder || state.mediaRecorder.state === 'inactive') return;
 
     state.isRecording = false;
 
-    // Update UI to processing state
-    elements.recordingPanel.classList.remove('recording');
-    elements.recordingPanel.classList.add('processing');
+    elements.recordingPanel?.classList.remove('recording');
+    elements.recordingPanel?.classList.add('processing');
     elements.recLabel.textContent = 'TRANSCRIBING';
     elements.recHint.textContent = 'Processing audio...';
-    elements.waveformContainer.classList.remove('active');
+    elements.waveformContainer?.classList.remove('active');
     state.isProcessing = true;
 
-    // Stop recorder and wait for data
     state.mediaRecorder.stop();
-
-    // Wait a moment for final data chunk
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Convert to WAV and send
     const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
     await sendAudioForTranscription(audioBlob);
 }
 
 async function sendAudioForTranscription(audioBlob) {
     if (!state.wsConnected) {
-        console.error('WebSocket not connected');
+        console.error('Not connected to server');
         resetRecordingState();
         return;
     }
 
     try {
-        // Convert webm to wav using AudioContext
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
         const wavBlob = audioBufferToWav(audioBuffer);
 
-        // Send via WebSocket
         state.ws.send(wavBlob);
         console.log('Audio sent for transcription');
     } catch (error) {
@@ -442,21 +519,15 @@ function handleTranscriptionResult(result) {
 
     console.log('Transcription result:', result);
 
-    // Update language badge with detected language
     if (result.language && elements.langBadge) {
         const langCode = result.language.toUpperCase();
-        const probability = result.language_probability
-            ? ` (${(result.language_probability * 100).toFixed(0)}%)`
-            : '';
-        elements.langBadge.textContent = langCode;
-        elements.langBadge.title = `Detected: ${langCode}${probability}`;
+        elements.langBadge.textContent = state.settings.language ? state.settings.language.toUpperCase() : langCode;
     }
 
-    // Display result
     if (result.text) {
         elements.transcriptContent.innerHTML = result.text;
         elements.transcriptMeta.textContent =
-            `Duration: ${result.duration?.toFixed(1)}s | Processing: ${result.processing_time?.toFixed(2)}s | Language: ${result.language}`;
+            `Duration: ${result.duration?.toFixed(1)}s | Processing: ${result.processing_time?.toFixed(2)}s | Detected: ${result.language?.toUpperCase()}`;
     } else {
         elements.transcriptContent.innerHTML = '<span class="placeholder">No speech detected</span>';
         elements.transcriptMeta.textContent = '';
@@ -464,13 +535,15 @@ function handleTranscriptionResult(result) {
 }
 
 function resetRecordingState() {
-    elements.recordingPanel.classList.remove('recording', 'processing');
+    elements.recordingPanel?.classList.remove('recording', 'processing');
     elements.recLabel.textContent = 'READY';
-    elements.recHint.textContent = 'Hold Ctrl + Option to record';
+
+    const keyName = state.settings.keybinding === 'ctrl' ? 'Ctrl' : 'Shift';
+    elements.recHint.textContent = `Hold ${keyName} + Option to record`;
 }
 
 // =============================================================================
-// Waveform Visualization
+// Waveform
 // =============================================================================
 
 function drawWaveform() {
@@ -483,11 +556,9 @@ function drawWaveform() {
 
     state.analyser.getByteTimeDomainData(dataArray);
 
-    // Clear canvas
     ctx.fillStyle = '#141416';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw waveform
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#ef4444';
     ctx.beginPath();
@@ -498,47 +569,39 @@ function drawWaveform() {
     for (let i = 0; i < bufferLength; i++) {
         const v = dataArray[i] / 128.0;
         const y = (v * canvas.height) / 2;
-
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
-
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
         x += sliceWidth;
     }
 
     ctx.lineTo(canvas.width, canvas.height / 2);
     ctx.stroke();
 
-    // Continue animation
     if (state.isRecording) {
         requestAnimationFrame(drawWaveform);
     }
 }
 
 // =============================================================================
-// Audio Buffer to WAV Conversion
+// Audio Buffer to WAV
 // =============================================================================
 
 function audioBufferToWav(audioBuffer) {
     const numChannels = 1;
     const sampleRate = audioBuffer.sampleRate;
-    const format = 1; // PCM
+    const format = 1;
     const bitDepth = 16;
 
-    // Get audio data (mono)
     const audioData = audioBuffer.getChannelData(0);
     const dataLength = audioData.length * (bitDepth / 8);
     const buffer = new ArrayBuffer(44 + dataLength);
     const view = new DataView(buffer);
 
-    // WAV header
     writeString(view, 0, 'RIFF');
     view.setUint32(4, 36 + dataLength, true);
     writeString(view, 8, 'WAVE');
     writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint32(16, 16, true);
     view.setUint16(20, format, true);
     view.setUint16(22, numChannels, true);
     view.setUint32(24, sampleRate, true);
@@ -548,7 +611,6 @@ function audioBufferToWav(audioBuffer) {
     writeString(view, 36, 'data');
     view.setUint32(40, dataLength, true);
 
-    // Write audio data
     const offset = 44;
     for (let i = 0; i < audioData.length; i++) {
         const sample = Math.max(-1, Math.min(1, audioData[i]));
@@ -569,25 +631,32 @@ function writeString(view, offset, string) {
 // Initialization
 // =============================================================================
 
-function init() {
+async function init() {
+    // Fetch settings from server first
+    await fetchSettings();
+
+    // Initialize UI
+    initLanguageSelector();
+    initKeybindToggle();
+
     // Connect WebSocket
     connectWebSocket();
 
-    // Set up key listeners
+    // Key listeners
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
 
     // Clear waveform
-    const ctx = elements.waveform.getContext('2d');
-    ctx.fillStyle = '#141416';
-    ctx.fillRect(0, 0, elements.waveform.width, elements.waveform.height);
+    const ctx = elements.waveform?.getContext('2d');
+    if (ctx) {
+        ctx.fillStyle = '#141416';
+        ctx.fillRect(0, 0, elements.waveform.width, elements.waveform.height);
+    }
 
-    console.log('Local STT initialized');
-    console.log('Press Ctrl + Option to start recording');
+    console.log('Web UI initialized');
 }
 
-// Start when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {

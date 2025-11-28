@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Global hotkey client for local STT.
 
-Listens for Ctrl+Option system-wide and records audio when held.
-Sends audio to the server and copies transcription to clipboard.
+Reads keybinding from server settings and listens for that hotkey globally.
+Sends audio to the server (which uses its language setting) and copies
+transcription to clipboard.
 
 Usage:
     uv run --extra client python hotkey_client.py
@@ -30,13 +31,42 @@ class HotkeyClient:
     """Global hotkey listener for speech-to-text."""
 
     def __init__(self):
-        self.ctrl_pressed = False
+        self.modifier_pressed = False  # Ctrl or Shift depending on keybinding
         self.opt_pressed = False
         self.is_recording = False
         self.is_processing = False
         self.audio_data: list[np.ndarray] = []
         self.stream: Optional[sd.InputStream] = None
         self.lock = threading.Lock()
+
+        # Settings from server
+        self.keybinding = "ctrl"  # Will be fetched from server
+        self.language_display = "AUTO"
+
+    def fetch_settings(self) -> bool:
+        """Fetch current settings from server."""
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(f"{SERVER_URL}/api/settings")
+                response.raise_for_status()
+                data = response.json()
+                self.keybinding = data.get("keybinding", "ctrl")
+                self.language_display = data.get("language_display", "AUTO")
+                return True
+        except Exception as e:
+            print(f"Failed to fetch settings: {e}")
+            return False
+
+    def get_keybinding_display(self) -> str:
+        """Get human-readable keybinding."""
+        return "Ctrl + Option" if self.keybinding == "ctrl" else "Shift + Option"
+
+    def is_modifier_key(self, key) -> bool:
+        """Check if key is the configured modifier."""
+        if self.keybinding == "ctrl":
+            return key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r
+        else:
+            return key == keyboard.Key.shift_l or key == keyboard.Key.shift_r
 
     def copy_to_clipboard(self, text: str) -> bool:
         """Copy text to clipboard using pbcopy (macOS)."""
@@ -123,7 +153,7 @@ class HotkeyClient:
 
             wav_buffer.seek(0)
 
-            # Send to server
+            # Send to server (server uses its language setting)
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(
                     f"{SERVER_URL}/api/transcribe",
@@ -135,9 +165,12 @@ class HotkeyClient:
             text = result.get("text", "").strip()
 
             if text:
-                print(f"📝 Transcription: {text}")
-                print(f"   Language: {result.get('language', 'unknown')}")
-                print(f"   Duration: {result.get('duration', 0):.1f}s")
+                lang = result.get("language", "?").upper()
+                duration = result.get("duration", 0)
+                proc_time = result.get("processing_time", 0)
+
+                print(f"📝 \"{text}\"")
+                print(f"   [{lang}] {duration:.1f}s audio → {proc_time:.2f}s processing")
 
                 # Copy to clipboard
                 if self.copy_to_clipboard(text):
@@ -151,17 +184,18 @@ class HotkeyClient:
             print(f"❌ Error: {e}")
         finally:
             self.is_processing = False
+            print()  # Blank line for readability
 
     def on_press(self, key):
         """Handle key press events."""
         try:
-            if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
-                self.ctrl_pressed = True
+            if self.is_modifier_key(key):
+                self.modifier_pressed = True
             elif key == keyboard.Key.alt_l or key == keyboard.Key.alt_r:
                 self.opt_pressed = True
 
             # Start recording when both keys pressed
-            if self.ctrl_pressed and self.opt_pressed:
+            if self.modifier_pressed and self.opt_pressed:
                 self.start_recording()
         except Exception:
             pass
@@ -169,13 +203,13 @@ class HotkeyClient:
     def on_release(self, key):
         """Handle key release events."""
         try:
-            if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
-                self.ctrl_pressed = False
+            if self.is_modifier_key(key):
+                self.modifier_pressed = False
             elif key == keyboard.Key.alt_l or key == keyboard.Key.alt_r:
                 self.opt_pressed = False
 
             # Stop recording when either key released
-            if self.is_recording and (not self.ctrl_pressed or not self.opt_pressed):
+            if self.is_recording and (not self.modifier_pressed or not self.opt_pressed):
                 self.stop_recording()
         except Exception:
             pass
@@ -192,21 +226,31 @@ class HotkeyClient:
     def run(self):
         """Start the hotkey listener."""
         print("=" * 50)
-        print("Local STT - Global Hotkey Client")
+        print("  Local STT - Global Hotkey Client")
         print("=" * 50)
 
         # Check server
-        print(f"Checking server at {SERVER_URL}...")
+        print(f"Connecting to {SERVER_URL}...")
         if not self.check_server():
             print("❌ Server not running. Please start the server first:")
             print("   ./scripts/start.sh")
             sys.exit(1)
 
-        print("✅ Server connected")
+        # Fetch settings from server
+        if not self.fetch_settings():
+            print("❌ Could not fetch settings from server")
+            sys.exit(1)
+
+        print("✅ Connected")
         print()
-        print("🎯 Ready! Hold Ctrl + Option to record.")
-        print("   Release to transcribe and copy to clipboard.")
-        print("   Press Ctrl+C to exit.")
+        print(f"  Keybinding: {self.get_keybinding_display()}")
+        print(f"  Language:   {self.language_display}")
+        print()
+        print(f"🎯 Hold {self.get_keybinding_display()} to record")
+        print("   Release to transcribe → clipboard")
+        print()
+        print("   (Change settings in web UI: http://127.0.0.1:8000)")
+        print("   Press Ctrl+C to exit")
         print()
 
         # Start keyboard listener

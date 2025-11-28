@@ -2,7 +2,6 @@
 
 import io
 import time
-from pathlib import Path
 from typing import Optional
 
 from faster_whisper import WhisperModel
@@ -80,6 +79,10 @@ class STTEngine:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
         start = time.time()
+
+        # Log the language setting being used
+        lang_mode = language.upper() if language else "AUTO-DETECT"
+        print(f"  [STTEngine] transcribe() called with language={lang_mode}")
 
         # Create file-like object from bytes
         audio_file = io.BytesIO(audio_data)

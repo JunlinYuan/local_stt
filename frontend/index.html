@@ -23,12 +23,53 @@
             </div>
         </header>
 
+        <!-- Language Selector -->
+        <section class="language-section">
+            <div class="language-label">
+                <span class="label-icon">◈</span>
+                <span>LANGUAGE MODE</span>
+            </div>
+            <div class="language-selector" id="languageSelector">
+                <button class="lang-btn active" data-lang="" data-name="Auto-Detect">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">AUTO</span>
+                </button>
+                <button class="lang-btn" data-lang="en" data-name="English">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">EN</span>
+                </button>
+                <button class="lang-btn" data-lang="fr" data-name="French">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">FR</span>
+                </button>
+                <button class="lang-btn" data-lang="zh" data-name="Chinese">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">中文</span>
+                </button>
+                <button class="lang-btn" data-lang="ja" data-name="Japanese">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">日本語</span>
+                </button>
+            </div>
+            <div class="language-status" id="languageStatus">Auto-detect enabled</div>
+        </section>
+
         <!-- Main Recording Interface -->
         <main class="main">
+            <!-- Key Binding Toggle -->
+            <div class="keybind-toggle" id="keybindToggle">
+                <button class="keybind-btn active" data-binding="ctrl" title="Ctrl + Option">
+                    <span class="keybind-keys">⌃ + ⌥</span>
+                </button>
+                <button class="keybind-btn" data-binding="shift" title="Shift + Option">
+                    <span class="keybind-keys">⇧ + ⌥</span>
+                </button>
+            </div>
+
             <!-- Key Indicators -->
             <div class="key-indicators">
-                <div class="key-card" id="ctrlKey">
-                    <div class="key-label">CTRL</div>
+                <div class="key-card" id="modifierKey">
+                    <div class="key-label" id="modifierLabel">CTRL</div>
                     <div class="key-status">—</div>
                 </div>
                 <div class="key-connector">

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local STT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">LOCAL STT</span>
+            </div>
+            <div class="status-badge" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span>Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Recording Interface -->
+        <main class="main">
+            <!-- Key Indicators -->
+            <div class="key-indicators">
+                <div class="key-card" id="ctrlKey">
+                    <div class="key-label">CTRL</div>
+                    <div class="key-status">—</div>
+                </div>
+                <div class="key-connector">
+                    <span class="connector-symbol">+</span>
+                </div>
+                <div class="key-card" id="optKey">
+                    <div class="key-label">OPT</div>
+                    <div class="key-status">—</div>
+                </div>
+            </div>
+
+            <!-- Recording State -->
+            <div class="recording-panel" id="recordingPanel">
+                <div class="rec-indicator" id="recIndicator">
+                    <div class="rec-ring"></div>
+                    <div class="rec-core"></div>
+                </div>
+                <div class="rec-label" id="recLabel">READY</div>
+                <div class="rec-hint" id="recHint">Hold Ctrl + Option to record</div>
+            </div>
+
+            <!-- Waveform Visualization -->
+            <div class="waveform-container" id="waveformContainer">
+                <canvas id="waveform" width="600" height="80"></canvas>
+            </div>
+
+            <!-- Transcription Result -->
+            <div class="transcript-panel">
+                <div class="transcript-header">
+                    <span class="transcript-icon">✦</span>
+                    <span>TRANSCRIPT</span>
+                </div>
+                <div class="transcript-content" id="transcriptContent">
+                    <span class="placeholder">Your transcription will appear here...</span>
+                </div>
+                <div class="transcript-meta" id="transcriptMeta"></div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="vocab-display">
+                <span class="vocab-label">VOCABULARY:</span>
+                <span class="vocab-terms" id="vocabTerms">TEMPEST</span>
+            </div>
+            <div class="model-info">
+                <span>distil-large-v3</span>
+                <span class="lang-badge">FR</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

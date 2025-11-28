@@ -36,6 +36,7 @@ class HotkeyClient:
         self.opt_pressed = False
         self.is_recording = False
         self.is_processing = False
+        self.recording_start_time: float = 0.0
         self.audio_data: list[np.ndarray] = []
         self.stream: Optional[sd.InputStream] = None
         self.lock = threading.Lock()
@@ -45,6 +46,7 @@ class HotkeyClient:
         self.language_display = "AUTO"
         self.paste_delay = 0.5  # Will be fetched from server
         self.clipboard_sync_delay = 0.15  # Will be fetched from server
+        self.min_recording_duration = 0.3  # Will be fetched from server
 
     def fetch_settings(self) -> bool:
         """Fetch current settings from server."""
@@ -57,18 +59,19 @@ class HotkeyClient:
                 self.language_display = data.get("language_display", "AUTO")
                 self.paste_delay = data.get("paste_delay", 0.5)
                 self.clipboard_sync_delay = data.get("clipboard_sync_delay", 0.15)
+                self.min_recording_duration = data.get("min_recording_duration", 0.3)
                 return True
         except Exception as e:
             print(f"Failed to fetch settings: {e}")
             return False
 
-    def send_status(self, recording: bool) -> None:
+    def send_status(self, recording: bool, cancelled: bool = False) -> None:
         """Notify server of recording status (broadcasts to web UI)."""
         try:
             with httpx.Client(timeout=2.0) as client:
                 client.post(
                     f"{SERVER_URL}/api/status",
-                    json={"recording": recording},
+                    json={"recording": recording, "cancelled": cancelled},
                 )
         except Exception:
             pass  # Non-critical, don't print errors
@@ -185,6 +188,7 @@ class HotkeyClient:
                 return
 
             self.is_recording = True
+            self.recording_start_time = time.time()
             self.audio_data = []
 
             print("🎤 Recording... (release keys to stop)")
@@ -218,11 +222,18 @@ class HotkeyClient:
                 return
 
             self.is_recording = False
+            recording_duration = time.time() - self.recording_start_time
 
             if self.stream:
                 self.stream.stop()
                 self.stream.close()
                 self.stream = None
+
+            # Skip if recording was too short (accidental tap)
+            if recording_duration < self.min_recording_duration:
+                print(f"⏭️  Recording too short ({recording_duration:.2f}s), skipping")
+                self.send_status(recording=False, cancelled=True)
+                return
 
             print("⏹️  Recording stopped, transcribing...")
             self.is_processing = True
@@ -348,6 +359,7 @@ class HotkeyClient:
         print(f"  Language:         {self.language_display}")
         print(f"  Clipboard sync:   {self.clipboard_sync_delay:.2f}s")
         print(f"  Paste delay:      {self.paste_delay:.1f}s")
+        print(f"  Min duration:     {self.min_recording_duration:.1f}s")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
         print("   Release to transcribe → auto-paste")

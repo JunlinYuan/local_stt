@@ -137,12 +137,13 @@ class StatusUpdate(BaseModel):
     """Status update from CLI client."""
 
     recording: bool
+    cancelled: bool = False  # True when recording was too short
 
 
 @app.post("/api/status")
 async def update_status(status: StatusUpdate):
     """Broadcast recording status to connected web UI clients."""
-    message = {"type": "status", "recording": status.recording}
+    message = {"type": "status", "recording": status.recording, "cancelled": status.cancelled}
 
     for ws in list(_ws_clients):
         try:

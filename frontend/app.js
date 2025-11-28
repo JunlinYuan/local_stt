@@ -577,7 +577,13 @@ async function sendAudioForTranscription(audioBlob) {
 }
 
 function handleStatusUpdate(data) {
-    if (data.recording) {
+    if (data.cancelled) {
+        // Recording was too short, cancelled
+        state.isRecording = false;
+        state.isProcessing = false;
+        resetRecordingState();
+        console.log('Recording cancelled (too short)');
+    } else if (data.recording) {
         // CLI started recording
         state.isRecording = true;
         elements.recordingPanel?.classList.add('recording');

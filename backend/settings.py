@@ -63,6 +63,14 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "Filter likely misrecognized profanity",
         "display": lambda v: "On" if v else "Off",
     },
+    "min_recording_duration": {
+        "default": 0.3,
+        "type": "number",
+        "min": 0.1,
+        "max": 2.0,
+        "description": "Minimum recording duration to avoid accidental taps",
+        "display": lambda v: f"{v:.1f}s",
+    },
 }
 
 
@@ -229,3 +237,8 @@ def get_keybinding() -> str:
 def get_paste_delay() -> float:
     """Get paste delay setting in seconds."""
     return get_setting("paste_delay")
+
+
+def get_min_recording_duration() -> float:
+    """Get minimum recording duration in seconds."""
+    return get_setting("min_recording_duration")

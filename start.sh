@@ -67,8 +67,11 @@ if ! curl -s http://127.0.0.1:8000/ > /dev/null 2>&1; then
     exit 1
 fi
 
+# Open browser now that server is ready
+open "http://127.0.0.1:8000"
+
 echo ""
-echo "Server: http://127.0.0.1:8000"
+echo "Server: http://127.0.0.1:8000 (opened in browser)"
 echo ""
 echo "────────────────────────────────────────────"
 echo "  Logs from both server and client below"

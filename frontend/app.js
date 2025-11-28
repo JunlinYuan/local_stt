@@ -277,11 +277,8 @@ function updateSettingsUI(data) {
         elements.modifierLabel.textContent = data.keybinding === 'ctrl' ? 'CTRL' : 'SHIFT';
     }
 
-    // Update hint text
-    if (elements.recHint && !state.isRecording) {
-        const keyName = data.keybinding === 'ctrl' ? 'Ctrl' : 'Shift';
-        elements.recHint.textContent = `Hold ${keyName} + Option to record`;
-    }
+    // Hint text is now static (observer mode)
+    // Key detection disabled in web UI
 
     // Update paste delay slider
     if (elements.pasteDelaySlider && data.paste_delay !== undefined) {
@@ -326,8 +323,16 @@ function connectWebSocket() {
     };
 
     state.ws.onmessage = (event) => {
-        const result = JSON.parse(event.data);
-        handleTranscriptionResult(result);
+        const data = JSON.parse(event.data);
+
+        // Handle status updates from CLI
+        if (data.type === 'status') {
+            handleStatusUpdate(data);
+            return;
+        }
+
+        // Handle transcription results
+        handleTranscriptionResult(data);
     };
 }
 
@@ -571,9 +576,36 @@ async function sendAudioForTranscription(audioBlob) {
     }
 }
 
+function handleStatusUpdate(data) {
+    if (data.recording) {
+        // CLI started recording
+        state.isRecording = true;
+        elements.recordingPanel?.classList.add('recording');
+        elements.recordingPanel?.classList.remove('processing');
+        elements.recLabel.textContent = 'RECORDING';
+        elements.recHint.textContent = 'CLI is recording...';
+        console.log('CLI recording started');
+    } else {
+        // CLI stopped recording, now processing
+        state.isRecording = false;
+        state.isProcessing = true;
+        elements.recordingPanel?.classList.remove('recording');
+        elements.recordingPanel?.classList.add('processing');
+        elements.recLabel.textContent = 'TRANSCRIBING';
+        elements.recHint.textContent = 'Processing audio...';
+        console.log('CLI recording stopped, transcribing...');
+    }
+}
+
 function handleTranscriptionResult(result) {
     state.isProcessing = false;
     resetRecordingState();
+
+    // Handle skipped requests (legacy, kept for compatibility)
+    if (result.skipped) {
+        console.log('Transcription skipped');
+        return;
+    }
 
     console.log('Transcription result:', result);
 
@@ -594,10 +626,8 @@ function handleTranscriptionResult(result) {
 
 function resetRecordingState() {
     elements.recordingPanel?.classList.remove('recording', 'processing');
-    elements.recLabel.textContent = 'READY';
-
-    const keyName = state.settings.keybinding === 'ctrl' ? 'Ctrl' : 'Shift';
-    elements.recHint.textContent = `Hold ${keyName} + Option to record`;
+    elements.recLabel.textContent = 'OBSERVING';
+    elements.recHint.textContent = 'Waiting for CLI transcription...';
 }
 
 // =============================================================================
@@ -890,10 +920,11 @@ async function init() {
     // Connect WebSocket
     connectWebSocket();
 
-    // Key listeners
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', handleBlur);
+    // Key listeners disabled - web UI is observer-only
+    // Transcription results are broadcast from CLI
+    // document.addEventListener('keydown', handleKeyDown);
+    // document.addEventListener('keyup', handleKeyUp);
+    // window.addEventListener('blur', handleBlur);
 
     // Clear waveform
     const ctx = elements.waveform?.getContext('2d');

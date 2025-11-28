@@ -55,6 +55,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Local STT", lifespan=lifespan)
 
+# Lock to serialize transcription requests (MLX/Metal is not thread-safe)
+_transcription_lock = asyncio.Lock()
+# Connected WebSocket clients for broadcasting results
+_ws_clients: set[WebSocket] = set()
+
 # Serve frontend
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -124,6 +129,31 @@ async def update_keybinding(keybinding: str = Form("ctrl")):
 
 
 # =============================================================================
+# Status API (for CLI to broadcast state to web UI)
+# =============================================================================
+
+
+class StatusUpdate(BaseModel):
+    """Status update from CLI client."""
+
+    recording: bool
+
+
+@app.post("/api/status")
+async def update_status(status: StatusUpdate):
+    """Broadcast recording status to connected web UI clients."""
+    message = {"type": "status", "recording": status.recording}
+
+    for ws in list(_ws_clients):
+        try:
+            await ws.send_json(message)
+        except Exception:
+            _ws_clients.discard(ws)
+
+    return {"ok": True}
+
+
+# =============================================================================
 # Transcription API
 # =============================================================================
 
@@ -143,11 +173,13 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
     print(f"→ [HTTP] Transcribing with language={lang_display}...", flush=True)
 
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(
-        None,
-        lambda: engine.transcribe(audio_data, language=lang),
-    )
+    # Serialize access to MLX/Metal (not thread-safe)
+    async with _transcription_lock:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: engine.transcribe(audio_data, language=lang),
+        )
 
     detected = result.get("language", "?").upper()
     proc_time = result.get("processing_time", 0)
@@ -157,46 +189,38 @@ async def transcribe_audio(file: UploadFile = File(...)):
         flush=True,
     )
 
+    # Broadcast result to all connected web UI clients
+    if _ws_clients:
+        for ws in list(_ws_clients):
+            try:
+                await ws.send_json(result)
+            except Exception:
+                _ws_clients.discard(ws)
+
     return result
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time status updates."""
-    await websocket.accept()
-    engine = get_engine()
+    """WebSocket endpoint for observing transcription results (read-only).
 
-    print("✓ [WS] Web UI connected", flush=True)
+    Web UI connects here to receive results broadcast from CLI transcriptions.
+    """
+    await websocket.accept()
+    _ws_clients.add(websocket)
+
+    print("✓ [WS] Web UI connected (observer mode)", flush=True)
 
     try:
+        # Keep connection alive, wait for disconnect
         while True:
-            # Receive audio data as bytes
-            data = await websocket.receive_bytes()
-
-            # Use current server settings
-            lang = settings.get_language()
-            response = settings.get_settings_response()
-            lang_display = response["language_display"]
-
-            print(f"→ [WS] Transcribing with language={lang_display}...", flush=True)
-
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda d=data, lg=lang: engine.transcribe(d, language=lg),
-            )
-
-            detected = result.get("language", "?").upper()
-            proc_time = result.get("processing_time", 0)
-            print(f"← [WS] Done in {proc_time:.2f}s [Detected: {detected}]", flush=True)
-
-            await websocket.send_json(result)
-
+            # Just receive and ignore any messages (keeps connection alive)
+            await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    finally:
+        _ws_clients.discard(websocket)
         print("✗ [WS] Web UI disconnected", flush=True)
-    except Exception as e:
-        print(f"[WS] Error: {e}", flush=True)
-        await websocket.close()
 
 
 # =============================================================================

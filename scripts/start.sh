@@ -36,9 +36,12 @@ echo ""
 echo "Starting server..."
 echo "First run will download the model (~1.5GB for distil-large-v3)"
 echo ""
-echo "Open: http://127.0.0.1:8000"
+echo "Opening: http://127.0.0.1:8000"
 echo "Press Ctrl+C to stop"
 echo ""
+
+# Open browser after a short delay (allows server to start)
+(sleep 2 && open "http://127.0.0.1:8000") &
 
 # Run the server
 uv run uvicorn main:app --host 127.0.0.1 --port 8000 --reload

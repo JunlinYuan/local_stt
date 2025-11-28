@@ -62,6 +62,17 @@ class HotkeyClient:
             print(f"Failed to fetch settings: {e}")
             return False
 
+    def send_status(self, recording: bool) -> None:
+        """Notify server of recording status (broadcasts to web UI)."""
+        try:
+            with httpx.Client(timeout=2.0) as client:
+                client.post(
+                    f"{SERVER_URL}/api/status",
+                    json={"recording": recording},
+                )
+        except Exception:
+            pass  # Non-critical, don't print errors
+
     def get_keybinding_display(self) -> str:
         """Get human-readable keybinding."""
         return "Ctrl + Option" if self.keybinding == "ctrl" else "Shift + Option"
@@ -100,7 +111,7 @@ class HotkeyClient:
     def simulate_paste(self) -> bool:
         """Simulate Cmd+V paste using AppleScript (macOS)."""
         try:
-            result = subprocess.run(
+            subprocess.run(
                 [
                     "osascript",
                     "-e",
@@ -178,7 +189,21 @@ class HotkeyClient:
 
             print("🎤 Recording... (release keys to stop)")
 
+            # Notify web UI
+            self.send_status(recording=True)
+
+            # Query current default input device (refreshes on each recording)
+            # This allows hot-swapping microphones without restarting
+            try:
+                default_input = sd.query_devices(kind="input")
+                device_index = default_input["index"]
+                device_name = default_input["name"]
+                print(f"   Using: {device_name}")
+            except Exception:
+                device_index = None  # Fall back to sounddevice default
+
             self.stream = sd.InputStream(
+                device=device_index,
                 samplerate=SAMPLE_RATE,
                 channels=CHANNELS,
                 dtype="int16",
@@ -201,6 +226,9 @@ class HotkeyClient:
 
             print("⏹️  Recording stopped, transcribing...")
             self.is_processing = True
+
+            # Notify web UI (recording stopped, now processing)
+            self.send_status(recording=False)
 
         # Process in background thread to not block key listener
         threading.Thread(target=self._process_audio, daemon=True).start()

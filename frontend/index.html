@@ -75,10 +75,28 @@
                 <span class="vocab-terms" id="vocabTerms">TEMPEST</span>
             </div>
             <div class="model-info">
-                <span>distil-large-v3</span>
-                <span class="lang-badge">FR</span>
+                <span>large-v3</span>
+                <span class="lang-badge" id="langBadge">AUTO</span>
             </div>
         </footer>
+
+        <!-- Console Panel -->
+        <div class="console-panel" id="consolePanel">
+            <div class="console-header" id="consoleHeader">
+                <div class="console-title">
+                    <span class="console-icon">⬢</span>
+                    <span>CONSOLE</span>
+                    <span class="console-count" id="consoleCount">0</span>
+                </div>
+                <div class="console-actions">
+                    <button class="console-btn" id="clearConsole" title="Clear">✕</button>
+                    <button class="console-btn" id="toggleConsole" title="Toggle">▼</button>
+                </div>
+            </div>
+            <div class="console-body" id="consoleBody">
+                <div class="console-logs" id="consoleLogs"></div>
+            </div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>

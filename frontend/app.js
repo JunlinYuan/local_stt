@@ -4,6 +4,171 @@
  */
 
 // =============================================================================
+// Console Logging System
+// =============================================================================
+
+const consoleLogger = {
+    logs: [],
+    maxLogs: 100,
+    errorCount: 0,
+
+    init() {
+        // Store original console methods
+        this.originalLog = console.log;
+        this.originalWarn = console.warn;
+        this.originalError = console.error;
+
+        // Override console methods
+        console.log = (...args) => {
+            this.addLog('info', args);
+            this.originalLog.apply(console, args);
+        };
+
+        console.warn = (...args) => {
+            this.addLog('warn', args);
+            this.originalWarn.apply(console, args);
+        };
+
+        console.error = (...args) => {
+            this.addLog('error', args);
+            this.originalError.apply(console, args);
+        };
+
+        // Capture uncaught errors
+        window.addEventListener('error', (event) => {
+            this.addLog('error', [`Uncaught: ${event.message} at ${event.filename}:${event.lineno}`]);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            this.addLog('error', [`Unhandled Promise: ${event.reason}`]);
+        });
+
+        // Set up UI handlers after DOM ready
+        this.setupUI();
+    },
+
+    setupUI() {
+        const toggleBtn = document.getElementById('toggleConsole');
+        const clearBtn = document.getElementById('clearConsole');
+        const consoleHeader = document.getElementById('consoleHeader');
+        const consolePanel = document.getElementById('consolePanel');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                consolePanel.classList.toggle('collapsed');
+            });
+        }
+
+        if (consoleHeader) {
+            consoleHeader.addEventListener('click', () => {
+                consolePanel.classList.toggle('collapsed');
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clear();
+            });
+        }
+
+        this.render();
+    },
+
+    addLog(type, args) {
+        const message = args.map(arg => {
+            if (typeof arg === 'object') {
+                try {
+                    return JSON.stringify(arg, null, 2);
+                } catch {
+                    return String(arg);
+                }
+            }
+            return String(arg);
+        }).join(' ');
+
+        const entry = {
+            type,
+            message,
+            time: new Date(),
+        };
+
+        this.logs.push(entry);
+
+        // Keep logs under limit
+        if (this.logs.length > this.maxLogs) {
+            this.logs.shift();
+        }
+
+        if (type === 'error') {
+            this.errorCount++;
+        }
+
+        this.render();
+    },
+
+    clear() {
+        this.logs = [];
+        this.errorCount = 0;
+        this.render();
+    },
+
+    formatTime(date) {
+        return date.toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+    },
+
+    render() {
+        const logsContainer = document.getElementById('consoleLogs');
+        const countBadge = document.getElementById('consoleCount');
+        const consolePanel = document.getElementById('consolePanel');
+
+        if (!logsContainer) return;
+
+        if (this.logs.length === 0) {
+            logsContainer.innerHTML = '<div class="console-empty">No logs yet</div>';
+        } else {
+            logsContainer.innerHTML = this.logs.map(log => `
+                <div class="log-entry ${log.type}">
+                    <span class="log-time">${this.formatTime(log.time)}</span>
+                    <span class="log-type ${log.type}">${log.type.toUpperCase()}</span>
+                    <span class="log-message">${this.escapeHtml(log.message)}</span>
+                </div>
+            `).join('');
+
+            // Auto-scroll to bottom
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        if (countBadge) {
+            countBadge.textContent = this.logs.length;
+        }
+
+        if (consolePanel) {
+            if (this.errorCount > 0) {
+                consolePanel.classList.add('has-errors');
+            } else {
+                consolePanel.classList.remove('has-errors');
+            }
+        }
+    },
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+};
+
+// Initialize console logger immediately
+consoleLogger.init();
+
+// =============================================================================
 // State Management
 // =============================================================================
 
@@ -45,6 +210,7 @@ const elements = {
     transcriptMeta: document.getElementById('transcriptMeta'),
     connectionStatus: document.getElementById('connectionStatus'),
     vocabTerms: document.getElementById('vocabTerms'),
+    langBadge: document.getElementById('langBadge'),
 };
 
 // =============================================================================
@@ -273,6 +439,18 @@ async function sendAudioForTranscription(audioBlob) {
 function handleTranscriptionResult(result) {
     state.isProcessing = false;
     resetRecordingState();
+
+    console.log('Transcription result:', result);
+
+    // Update language badge with detected language
+    if (result.language && elements.langBadge) {
+        const langCode = result.language.toUpperCase();
+        const probability = result.language_probability
+            ? ` (${(result.language_probability * 100).toFixed(0)}%)`
+            : '';
+        elements.langBadge.textContent = langCode;
+        elements.langBadge.title = `Detected: ${langCode}${probability}`;
+    }
 
     // Display result
     if (result.text) {

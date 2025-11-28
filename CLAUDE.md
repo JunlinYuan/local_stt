@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local speech-to-text web application optimized for Apple Silicon. Uses faster-whisper with distil-large-v3 model for fast French transcription with custom vocabulary support. Push-to-talk interface (Ctrl+Option) with real-time waveform visualization.
+Local speech-to-text web application optimized for Apple Silicon. Uses faster-whisper with large-v3 model for multi-language transcription with auto-detection and custom vocabulary support. Push-to-talk interface (Ctrl+Option) with real-time waveform visualization and debug console.
 
 ## Commands
 
@@ -42,7 +42,8 @@ Frontend (vanilla JS) ──WebSocket──▶ FastAPI Backend ──▶ faster-
 **STT Engine (`stt_engine.py`):**
 - Singleton pattern via `get_engine()`
 - Model loads on FastAPI lifespan startup
-- Custom vocabulary passed via `initial_prompt` (currently disabled for testing)
+- Custom vocabulary passed via `initial_prompt` for better term recognition
+- Language auto-detection when `language=None` (default)
 - Speed optimizations: `beam_size=1`, `best_of=1`, `vad_filter=True`
 
 ## Key Files
@@ -58,6 +59,7 @@ Frontend (vanilla JS) ──WebSocket──▶ FastAPI Backend ──▶ faster-
 ## Configuration
 
 - **Model**: `large-v3` (configurable in `STTEngine.__init__`)
-- **Language**: French (`fr`) by default
+- **Language**: Auto-detect (default), or specify code like `"en"`, `"fr"`
 - **Vocabulary**: `["TEMPEST"]` - extend via API or `stt_engine.py`
 - **Push-to-talk**: Ctrl+Option chord (browser focus required)
+- **Console panel**: Collapsible debug panel shows console.log/warn/error with timestamps

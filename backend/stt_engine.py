@@ -50,29 +50,28 @@ class STTEngine:
         """Set custom vocabulary for biasing transcription."""
         self.vocabulary = words
 
-    def _build_initial_prompt(self, language: str = "fr") -> str:
-        """Build initial_prompt from vocabulary in target language."""
+    def _build_initial_prompt(self, language: str | None = None) -> str:
+        """Build initial_prompt from vocabulary.
+
+        The prompt provides context for domain-specific vocabulary without
+        forcing a particular language - auto-detection handles that.
+        """
         if not self.vocabulary:
-            # Return a French prompt to bias toward French output
-            if language == "fr":
-                return "Transcription en français. "
             return ""
 
-        # Use French context for French transcription
-        if language == "fr":
-            return f"Transcription en français. Vocabulaire: {', '.join(self.vocabulary)}. "
-        return f"Context: {', '.join(self.vocabulary)}. "
+        # Simple context prompt that works for any language
+        return f"Vocabulary: {', '.join(self.vocabulary)}. "
 
     def transcribe(
         self,
         audio_data: bytes,
-        language: str = "fr",
+        language: str | None = None,
     ) -> dict:
         """Transcribe audio data to text.
 
         Args:
             audio_data: Raw audio bytes (WAV format)
-            language: Language code (fr, en, etc.)
+            language: Language code (fr, en, etc.) or None for auto-detect
 
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
@@ -85,12 +84,15 @@ class STTEngine:
         # Create file-like object from bytes
         audio_file = io.BytesIO(audio_data)
 
+        # Build initial prompt for vocabulary biasing
+        initial_prompt = self._build_initial_prompt(language)
+
         # Transcribe with speed optimizations
         segments, info = self.model.transcribe(
             audio_file,
-            language=language,
+            language=language,  # None = auto-detect
             task="transcribe",
-            # initial_prompt disabled for testing
+            initial_prompt=initial_prompt if initial_prompt else None,
             beam_size=1,  # Speed optimization
             best_of=1,  # Speed optimization
             vad_filter=True,  # Filter out silence

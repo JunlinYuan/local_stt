@@ -1,5 +1,7 @@
 {
   "language": "en",
   "keybinding": "shift",
-  "paste_delay": 0.1
+  "paste_delay": 0.1,
+  "clipboard_sync_delay": 0.15,
+  "content_filter": true
 }

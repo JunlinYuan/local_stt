@@ -9,6 +9,9 @@ from typing import Optional
 from lightning_whisper_mlx import LightningWhisperMLX
 from lightning_whisper_mlx.transcribe import transcribe_audio
 
+from content_filter import get_filter
+from settings import get_setting
+
 
 class STTEngine:
     """Wrapper for lightning-whisper-mlx model."""
@@ -154,6 +157,9 @@ class STTEngine:
             full_text = result.get("text", "").strip()
             # Apply canonical casing from vocabulary
             full_text = self._apply_vocabulary_casing(full_text)
+            # Filter likely misrecognized profanity (if enabled)
+            if get_setting("content_filter"):
+                full_text = get_filter().filter(full_text)
             detected_language = result.get("language", language or "unknown")
 
             # Calculate audio duration from segments

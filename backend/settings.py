@@ -57,6 +57,12 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "Delay before paste to ensure clipboard is synced",
         "display": lambda v: f"{v:.2f}s",
     },
+    "content_filter": {
+        "default": True,
+        "type": "boolean",
+        "description": "Filter likely misrecognized profanity",
+        "display": lambda v: "On" if v else "Off",
+    },
 }
 
 

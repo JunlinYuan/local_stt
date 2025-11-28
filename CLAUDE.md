@@ -9,11 +9,12 @@ Local speech-to-text web application optimized for Apple Silicon. Uses faster-wh
 ## Commands
 
 ```bash
-# Start the application (installs deps, runs server at http://127.0.0.1:8000)
-./scripts/start.sh
+# Start everything (server + global hotkey client)
+./start.sh
 
-# Or manually:
-cd backend && uv sync && uv run uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+# Or start components separately:
+./scripts/start.sh         # Server only (with web UI)
+./scripts/start-client.sh  # Client only (requires server running)
 
 # Lint
 cd backend && uv run ruff check .
@@ -25,11 +26,20 @@ cd backend && uv run ruff format .
 ## Architecture
 
 ```
-Frontend (vanilla JS) ──WebSocket──▶ FastAPI Backend ──▶ faster-whisper STT Engine
-     │                                    │
-     ├─ Key chord detection (Ctrl+Opt)    ├─ /ws - Audio streaming endpoint
-     ├─ WebAudio recording → WAV          ├─ /api/vocabulary - GET/POST vocabulary
-     └─ Waveform visualization            └─ Serves static frontend from /static
+                                      ┌──────────────────────────────────────────┐
+                                      │        FastAPI Backend (main.py)          │
+                                      │                                           │
+Frontend (vanilla JS) ──WebSocket──▶  │  /ws - Audio streaming (browser)         │
+     │                                │  /api/transcribe - HTTP POST (client)    │ ──▶ faster-whisper
+     ├─ Key chord detection           │  /api/vocabulary - GET/POST vocabulary   │      STT Engine
+     ├─ WebAudio recording → WAV      │  Serves static frontend from /static     │
+     └─ Waveform visualization        └──────────────────────────────────────────┘
+                                                           ▲
+Global Hotkey Client (hotkey_client.py) ───HTTP POST───────┘
+     │
+     ├─ System-wide Ctrl+Opt detection (pynput)
+     ├─ Audio recording (sounddevice)
+     └─ Auto-copy to clipboard (pbcopy)
 ```
 
 **Key Flow:**
@@ -50,8 +60,9 @@ Frontend (vanilla JS) ──WebSocket──▶ FastAPI Backend ──▶ faster-
 
 | File | Purpose |
 |------|---------|
-| `backend/main.py` | FastAPI app, WebSocket handler, vocabulary API |
+| `backend/main.py` | FastAPI app, WebSocket handler, HTTP transcribe API |
 | `backend/stt_engine.py` | Whisper model wrapper, transcription logic |
+| `backend/hotkey_client.py` | Global hotkey daemon, audio recording, clipboard |
 | `frontend/app.js` | Key detection, audio recording, WebSocket client |
 | `docs/prd.md` | Full requirements and technical decisions |
 | `docs/learnings.md` | Model comparison research, optimization notes |
@@ -61,5 +72,14 @@ Frontend (vanilla JS) ──WebSocket──▶ FastAPI Backend ──▶ faster-
 - **Model**: `large-v3` (configurable in `STTEngine.__init__`)
 - **Language**: Auto-detect (default), or specify code like `"en"`, `"fr"`
 - **Vocabulary**: `["TEMPEST"]` - extend via API or `stt_engine.py`
-- **Push-to-talk**: Ctrl+Option chord (browser focus required)
+- **Push-to-talk**: Ctrl+Option chord
 - **Console panel**: Collapsible debug panel shows console.log/warn/error with timestamps
+
+## Usage Modes
+
+| Mode | What | When to Use |
+|------|------|-------------|
+| **Web UI** | `./scripts/start.sh` then open browser | Debug, see waveform, view transcription history |
+| **Global Client** | Both scripts running | System-wide hotkey, auto-clipboard, headless use |
+
+Note: Global client requires macOS Accessibility permissions for your terminal app.

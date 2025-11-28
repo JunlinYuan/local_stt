@@ -15,6 +15,13 @@ dependencies = [
 dev = [
     "ruff>=0.1.0",
 ]
+# Global hotkey client dependencies
+client = [
+    "pynput>=1.7.6",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "httpx>=0.25.0",
+]
 
 [tool.uv]
 dev-dependencies = [

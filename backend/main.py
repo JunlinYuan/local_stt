@@ -4,7 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +30,20 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 async def index():
     """Serve the main page."""
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """HTTP endpoint for audio transcription (used by global hotkey client)."""
+    engine = get_engine()
+    audio_data = await file.read()
+
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: engine.transcribe(audio_data),
+    )
+    return result
 
 
 @app.websocket("/ws")

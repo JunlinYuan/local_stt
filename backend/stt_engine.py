@@ -1,11 +1,13 @@
 """Speech-to-text engine using lightning-whisper-mlx for Apple Silicon."""
 
+import re
 import tempfile
 import time
 from pathlib import Path
 from typing import Optional
 
 from lightning_whisper_mlx import LightningWhisperMLX
+from lightning_whisper_mlx.transcribe import transcribe_audio
 
 
 class STTEngine:
@@ -28,6 +30,7 @@ class STTEngine:
         self.batch_size = batch_size
         self.quant = quant
         self.model: Optional[LightningWhisperMLX] = None
+        self._model_path: Optional[str] = None  # Path to loaded model weights
 
         # Custom vocabulary for initial_prompt
         self.vocabulary: list[str] = ["TEMPEST"]
@@ -35,7 +38,9 @@ class STTEngine:
     def load_model(self) -> None:
         """Load the Whisper model and warm up inference."""
         quant_str = self.quant or "none"
-        print(f"Loading model: {self.model_size} (batch_size={self.batch_size}, quant={quant_str})...")
+        print(
+            f"Loading model: {self.model_size} (batch_size={self.batch_size}, quant={quant_str})..."
+        )
         start = time.time()
 
         self.model = LightningWhisperMLX(
@@ -43,10 +48,12 @@ class STTEngine:
             batch_size=self.batch_size,
             quant=self.quant,
         )
+        # Store the model path for direct transcribe_audio calls
+        self._model_path = f"./mlx_models/{self.model.name}"
 
         load_time = time.time() - start
         print(f"Model loaded in {load_time:.2f}s")
-        print(f"  → Using: MLX backend (Apple Silicon GPU)")
+        print("  → Using: MLX backend (Apple Silicon GPU)")
 
         # Warm up inference with a short silent audio
         print("  → Warming up inference...")
@@ -85,6 +92,16 @@ class STTEngine:
             return ""
         return f"Vocabulary: {', '.join(self.vocabulary)}. "
 
+    def _apply_vocabulary_casing(self, text: str) -> str:
+        """Replace vocabulary words with their canonical casing."""
+        if not self.vocabulary:
+            return text
+        for word in self.vocabulary:
+            # Case-insensitive word boundary replacement
+            pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
+            text = pattern.sub(word, text)
+        return text
+
     def transcribe(
         self,
         audio_data: bytes,
@@ -99,7 +116,7 @@ class STTEngine:
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
         """
-        if self.model is None:
+        if self.model is None or self._model_path is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
         total_start = time.time()
@@ -118,13 +135,25 @@ class STTEngine:
         try:
             # --- Timing: Model inference ---
             inference_start = time.time()
-            result = self.model.transcribe(
-                audio_path=temp_path,
+
+            # Build initial_prompt from vocabulary for better recognition
+            initial_prompt = self._build_initial_prompt(language)
+            if initial_prompt:
+                print(f"  [STTEngine] Using initial_prompt: {initial_prompt[:50]}...")
+
+            # Use transcribe_audio directly to support initial_prompt
+            result = transcribe_audio(
+                audio=temp_path,
+                path_or_hf_repo=self._model_path,
                 language=language,
+                batch_size=self.batch_size,
+                initial_prompt=initial_prompt if initial_prompt else None,
             )
             inference_time = (time.time() - inference_start) * 1000  # ms
 
             full_text = result.get("text", "").strip()
+            # Apply canonical casing from vocabulary
+            full_text = self._apply_vocabulary_casing(full_text)
             detected_language = result.get("language", language or "unknown")
 
             # Calculate audio duration from segments
@@ -148,8 +177,10 @@ class STTEngine:
             total_time = time.time() - total_start
 
             # Detailed timing log
-            print(f"  [Timing] prep={prep_time:.0f}ms | inference={inference_time:.0f}ms | "
-                  f"total={total_time*1000:.0f}ms | audio={duration:.1f}s")
+            print(
+                f"  [Timing] prep={prep_time:.0f}ms | inference={inference_time:.0f}ms | "
+                f"total={total_time * 1000:.0f}ms | audio={duration:.1f}s"
+            )
 
             return {
                 "text": full_text,

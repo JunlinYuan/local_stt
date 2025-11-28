@@ -14,7 +14,7 @@ env/
 
 # UV
 .uv/
-uv.lock
+# Note: uv.lock is tracked for reproducible builds
 
 # IDE
 .idea/
@@ -37,9 +37,12 @@ logs/
 
 # Model cache (large files)
 models/
+mlx_models/
+backend/mlx_models/
 *.bin
 *.pt
 *.onnx
+*.npz
 
 # Audio files (test recordings)
 *.wav

@@ -3,3 +3,56 @@
 # Words are case-sensitive (TEMPEST stays TEMPEST)
 
 TEMPEST
+Saurabh
+Arnab
+Jamal
+Madeline
+Mostafa
+Tommy
+Mangavelli
+Ugo
+Minami
+Ricardo
+Farhad
+Shiyuan
+Hongtao
+Elisa
+Indrek
+Hussein
+Giles
+Junlin
+Yuan
+Piomelli
+Mejia-Alvarez
+NSF
+DARPA
+DOE
+ONR
+NIH
+MSU
+ONERA
+KIT
+HPCC
+JFM
+JOT
+JGR
+SSSL
+AKCode
+Lighthill
+entrainment
+roughness
+sublayer
+FEDSM
+TSFP
+DNS
+LES
+RANS
+Navier-Stokes
+Reynolds
+Kolmogorov
+immersed boundary
+nonholonomic
+CUDA
+Fortran
+CLAUDE.md
+Claude Code

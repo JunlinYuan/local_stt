@@ -62,6 +62,8 @@ Global Hotkey Client (hotkey_client.py) ───HTTP POST───────�
 | `backend/main.py` | FastAPI app, WebSocket handler, HTTP transcribe API |
 | `backend/stt_engine.py` | Whisper model wrapper, transcription logic |
 | `backend/settings.py` | Schema-driven settings system (add new settings here) |
+| `backend/vocabulary.py` | Vocabulary manager with file watcher |
+| `backend/vocabulary.txt` | Custom vocabulary words (auto-reloads) |
 | `backend/hotkey_client.py` | Global hotkey daemon, audio recording, clipboard |
 | `frontend/app.js` | Key detection, audio recording, WebSocket client |
 | `docs/prd.md` | Full requirements and technical decisions |
@@ -79,7 +81,7 @@ Settings stored in `backend/settings.json`, managed via web UI or API.
 
 **Fixed config (in code):**
 - Model: `large-v3`
-- Vocabulary: `["TEMPEST"]` - extend via `/api/vocabulary`
+- Vocabulary: Edit `backend/vocabulary.txt` (auto-reloads) or use web UI
 
 ## Usage Modes
 

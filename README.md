@@ -32,6 +32,7 @@ local_stt/
 │   ├── main.py           # FastAPI server
 │   ├── stt_engine.py     # MLX Whisper wrapper
 │   ├── settings.py       # Settings schema
+│   ├── vocabulary.txt    # Custom vocabulary (auto-reloads)
 │   └── hotkey_client.py  # Global hotkey daemon
 ├── frontend/
 │   ├── index.html        # Web UI
@@ -64,6 +65,7 @@ With `./start.sh`, the global client runs alongside the server:
 Settings managed via web UI or API (`/api/settings`):
 - **Language**: Auto-detect or specific (en, fr, zh, ja)
 - **Keybinding**: Ctrl+Option or Shift+Option
+- **Vocabulary**: Edit `backend/vocabulary.txt` or use web UI (click footer)
 
 ## License
 

@@ -2,6 +2,8 @@
   "language": "en",
   "keybinding": "shift",
   "paste_delay": 0.1,
-  "clipboard_sync_delay": 0.15,
-  "content_filter": true
+  "clipboard_sync_delay": 0.3,
+  "content_filter": true,
+  "min_recording_duration": 0.3,
+  "min_volume_rms": 100
 }

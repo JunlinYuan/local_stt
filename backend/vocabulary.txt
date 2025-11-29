@@ -56,3 +56,7 @@ CUDA
 Fortran
 CLAUDE.md
 Claude Code
+Slack
+.env
+.zshrc
+API key

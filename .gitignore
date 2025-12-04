@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# UV
+.uv/
+# Note: uv.lock is tracked for reproducible builds
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Model cache (large files)
+models/
+mlx_models/
+backend/mlx_models/
+*.bin
+*.pt
+*.onnx
+*.npz
+
+# Audio files (test recordings)
+*.wav
+*.mp3
+*.webm
+*.m4a
+
+# Build
+dist/
+build/
+
+# User-specific data (should not be committed)
+backend/history.json
+backend/vocabulary.txt
+backend/settings.json
+
+# Debug/temporary files
+backend/filter_log.txt

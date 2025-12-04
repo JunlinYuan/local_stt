@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local STT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">LOCAL STT</span>
+            </div>
+            <div class="header-controls">
+                <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                    <span class="theme-icon">☾</span>
+                </button>
+                <div class="status-badge" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span>Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Access Bar (Vocabulary + History) -->
+        <nav class="quick-access-bar">
+            <div class="quick-access-left">
+                <div class="vocab-display" id="vocabToggle" title="Click to manage vocabulary">
+                    <span class="vocab-icon">◈</span>
+                    <span class="vocab-label">VOCAB</span>
+                    <span class="vocab-terms" id="vocabTerms">—</span>
+                    <span class="vocab-count" id="vocabCount">0</span>
+                </div>
+                <div class="history-toggle" id="historyToggle" title="Click to view history">
+                    <span class="history-icon">◷</span>
+                    <span class="history-label">HISTORY</span>
+                    <span class="history-count" id="historyCount">0</span>
+                </div>
+            </div>
+            <div class="quick-access-right">
+                <div class="model-info">
+                    <span class="model-name">large-v3</span>
+                    <span class="lang-badge" id="langBadge">AUTO</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Language Selector -->
+        <section class="language-section">
+            <div class="language-label">
+                <span class="label-icon">◈</span>
+                <span>LANGUAGE MODE</span>
+            </div>
+            <div class="language-selector" id="languageSelector">
+                <button class="lang-btn active" data-lang="" data-name="Auto-Detect">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">AUTO</span>
+                </button>
+                <button class="lang-btn" data-lang="en" data-name="English">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">EN</span>
+                </button>
+                <button class="lang-btn" data-lang="fr" data-name="French">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">FR</span>
+                </button>
+                <button class="lang-btn" data-lang="zh" data-name="Chinese">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">中文</span>
+                </button>
+                <button class="lang-btn" data-lang="ja" data-name="Japanese">
+                    <span class="lang-indicator"></span>
+                    <span class="lang-code">日本語</span>
+                </button>
+            </div>
+            <div class="language-status" id="languageStatus">Auto-detect enabled</div>
+        </section>
+
+        <!-- Main Recording Interface -->
+        <main class="main">
+            <!-- Provider Toggle Row -->
+            <div class="provider-row">
+                <div class="provider-label">
+                    <span class="label-icon">⚡</span>
+                    <span>STT PROVIDER</span>
+                </div>
+                <div class="provider-toggle" id="providerToggle">
+                    <!-- Buttons generated dynamically from schema -->
+                </div>
+            </div>
+
+            <!-- Settings Row: Key Binding + Delays -->
+            <div class="settings-row">
+                <!-- Key Binding Toggle -->
+                <div class="keybind-toggle" id="keybindToggle">
+                    <button class="keybind-btn active" data-binding="ctrl_only" title="Left Ctrl Only">
+                        <span class="keybind-keys">⌃</span>
+                    </button>
+                    <button class="keybind-btn" data-binding="ctrl" title="Ctrl + Option">
+                        <span class="keybind-keys">⌃ + ⌥</span>
+                    </button>
+                    <button class="keybind-btn" data-binding="shift" title="Shift + Option">
+                        <span class="keybind-keys">⇧ + ⌥</span>
+                    </button>
+                </div>
+
+                <!-- Clipboard Sync Delay Slider (before paste) -->
+                <div class="delay-control" id="clipboardSyncControl">
+                    <label class="delay-label" title="Delay after copying to clipboard before pasting">
+                        <span class="delay-icon">📋</span>
+                        <span>Pre</span>
+                    </label>
+                    <div class="delay-slider">
+                        <input type="range" id="clipboardSyncSlider" min="0" max="0.5" step="0.01" value="0.05">
+                        <span class="delay-value" id="clipboardSyncValue">0.05s</span>
+                    </div>
+                </div>
+
+                <!-- Paste Delay Slider (after paste) -->
+                <div class="delay-control" id="pasteDelayControl">
+                    <label class="delay-label" title="Delay after pasting before restoring clipboard">
+                        <span class="delay-icon">⏱</span>
+                        <span>Post</span>
+                    </label>
+                    <div class="delay-slider">
+                        <input type="range" id="pasteDelaySlider" min="0" max="0.5" step="0.01" value="0.05">
+                        <span class="delay-value" id="pasteDelayValue">0.05s</span>
+                    </div>
+                </div>
+
+                <!-- Volume Normalization Toggle -->
+                <div class="normalize-control" id="normalizeControl">
+                    <button type="button" class="normalize-btn active" id="normalizeToggle" title="Normalize audio volume (boost quiet, limit loud)">
+                        <span class="normalize-icon">🔊</span>
+                        <span class="normalize-label">NORM</span>
+                    </button>
+                </div>
+
+                <!-- Focus-Follows-Mouse Toggle -->
+                <div class="normalize-control" id="ffmControl">
+                    <button type="button" class="normalize-btn active" id="ffmToggle" title="Focus-follows-mouse: auto-focus window under cursor">
+                        <span class="normalize-icon">🖱️</span>
+                        <span class="normalize-label">FFM</span>
+                    </button>
+                </div>
+
+                <!-- Max Recording Duration Slider -->
+                <div class="delay-control" id="maxRecordingControl">
+                    <label class="delay-label" title="Maximum recording duration (safety timeout)">
+                        <span class="delay-icon">⏱</span>
+                        <span>Max</span>
+                    </label>
+                    <div class="delay-slider">
+                        <input type="range" id="maxRecordingSlider" min="30" max="300" step="30" value="240">
+                        <span class="delay-value" id="maxRecordingValue">4m</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recording State -->
+            <div class="recording-panel" id="recordingPanel">
+                <div class="rec-indicator" id="recIndicator">
+                    <div class="rec-ring"></div>
+                    <div class="rec-core"></div>
+                </div>
+                <div class="rec-label" id="recLabel">READY</div>
+                <div class="rec-hint" id="recHint">Hold Ctrl + Option to record</div>
+            </div>
+        </main>
+
+
+        <!-- Full-Page Vocabulary Panel -->
+        <div class="fullpage-overlay" id="vocabOverlay">
+            <div class="fullpage-panel" id="vocabPanel">
+                <div class="fullpage-panel-header">
+                    <div class="fullpage-panel-title">
+                        <span class="panel-icon">◈</span>
+                        <span>VOCABULARY BANK</span>
+                        <span class="panel-count" id="vocabPanelCount">0</span>
+                    </div>
+                    <button class="fullpage-panel-close" id="vocabPanelClose" title="Close (Esc)">
+                        <span>✕</span>
+                    </button>
+                </div>
+                <div class="fullpage-panel-body">
+                    <!-- Add Word Input -->
+                    <div class="vocab-add-row">
+                        <input type="text"
+                               id="vocabInput"
+                               class="vocab-input"
+                               placeholder="Add new word or phrase..."
+                               autocomplete="off"
+                               spellcheck="false">
+                        <button class="vocab-add-btn" id="vocabAddBtn" title="Add word">+</button>
+                    </div>
+                    <!-- Word List -->
+                    <div class="panel-items-grid vocab-grid" id="vocabList">
+                        <!-- Words will be populated here -->
+                    </div>
+                </div>
+                <div class="fullpage-panel-footer">
+                    <span class="file-hint">
+                        <span class="file-icon">📁</span>
+                        <span class="file-path">vocabulary.txt</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full-Page History Panel -->
+        <div class="fullpage-overlay" id="historyOverlay">
+            <div class="fullpage-panel" id="historyPanel">
+                <div class="fullpage-panel-header">
+                    <div class="fullpage-panel-title">
+                        <span class="panel-icon">◷</span>
+                        <span>DICTATION HISTORY</span>
+                        <span class="panel-count" id="historyPanelCount">0</span>
+                    </div>
+                    <div class="panel-header-actions">
+                        <button class="panel-action-btn" id="historyClearBtn" title="Clear all history">
+                            <span>Clear All</span>
+                        </button>
+                        <button class="fullpage-panel-close" id="historyPanelClose" title="Close (Esc)">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="fullpage-panel-body">
+                    <div class="panel-items-list history-list" id="historyList">
+                        <!-- History entries populated dynamically -->
+                    </div>
+                </div>
+                <div class="fullpage-panel-footer">
+                    <span class="history-hint">Click any entry to copy to clipboard</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console Panel -->
+        <div class="console-panel" id="consolePanel">
+            <div class="console-header" id="consoleHeader">
+                <div class="console-title">
+                    <span class="console-icon">⬢</span>
+                    <span>CONSOLE</span>
+                    <span class="console-count" id="consoleCount">0</span>
+                </div>
+                <div class="console-actions">
+                    <button class="console-btn" id="copyConsole" title="Copy all logs">⎘</button>
+                    <button class="console-btn" id="clearConsole" title="Clear">✕</button>
+                    <button class="console-btn" id="toggleConsole" title="Toggle">▼</button>
+                </div>
+            </div>
+            <div class="console-body" id="consoleBody">
+                <div class="console-logs" id="consoleLogs"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=5"></script>
+</body>
+</html>

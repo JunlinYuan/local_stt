@@ -39,7 +39,7 @@ Global Hotkey Client ─────────HTTP POST───────�
 ```
 
 **Key Flow:**
-1. User holds hotkey (Ctrl, Ctrl+Option, or Shift+Option) → records audio
+1. User holds hotkey (Ctrl, Ctrl+Cmd, or Shift+Cmd) → records audio
 2. On release, audio converted to WAV and sent to backend
 3. Backend routes to configured STT provider (local/OpenAI/Groq)
 4. Result JSON returned with text, language, duration, processing_time
@@ -71,7 +71,7 @@ Settings stored in `backend/settings.json`, managed via web UI or API.
 **Current settings:** (see `SETTINGS_SCHEMA` in `settings.py` for full list)
 - `stt_provider`: `"local"`, `"openai"`, or `"groq"` (fastest)
 - `language`: `""` (auto-detect), `"en"`, `"fr"`, `"zh"`, `"ja"`
-- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Option), or `"shift"` (+Option)
+- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Cmd), or `"shift"` (+Cmd)
 - `ffm_enabled`: Mouse tracking for targeted paste (default: true)
 - `max_recording_duration`: Safety timeout in seconds (default: 240)
 - `min_recording_duration`: Skip accidental taps (default: 0.3s)

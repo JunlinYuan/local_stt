@@ -62,8 +62,8 @@ Rationale:
 ### Key Features
 
 #### 1. Push-to-Talk Recording
-- **Trigger**: Hold Control + Option keys simultaneously
-- **Chord detection**: Single key press (Control only OR Option only) does nothing
+- **Trigger**: Hold Control + Command keys simultaneously
+- **Chord detection**: Single key press (Control only OR Command only) does nothing
 - Visual feedback during recording (pulsing indicator)
 - Recording starts when both keys held, stops when either released
 - Audio preprocessing (noise reduction optional)
@@ -139,7 +139,7 @@ config = {
 | Question | Decision |
 |----------|----------|
 | Fine-tuning approach | **Option A**: `initial_prompt` only (no training initially) |
-| Push-to-talk trigger | **Control + Option** keys held together |
+| Push-to-talk trigger | **Control + Command** keys held together |
 | VAD | **No** — manual push-to-release only |
 | Initial vocabulary | **TEMPEST** (single term for testing) |
 

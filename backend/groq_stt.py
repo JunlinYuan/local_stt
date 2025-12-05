@@ -43,10 +43,37 @@ class GroqSTT:
         self.vocabulary = words
 
     def _build_prompt(self) -> str | None:
-        """Build prompt from vocabulary for better recognition."""
+        """Build prompt from vocabulary for better recognition.
+
+        Groq has a 896 character limit on prompts, so we truncate if needed.
+        """
         if not self.vocabulary:
             return None
-        return f"Vocabulary: {', '.join(self.vocabulary)}."
+
+        # Groq's prompt limit
+        max_length = 896
+        prefix = "Vocabulary: "
+        suffix = "."
+
+        # Build prompt, truncating vocabulary if needed
+        words = []
+        current_length = len(prefix) + len(suffix)
+
+        for word in self.vocabulary:
+            # Account for comma and space between words
+            separator = ", " if words else ""
+            addition = len(separator) + len(word)
+
+            if current_length + addition <= max_length:
+                words.append(word)
+                current_length += addition
+            else:
+                break
+
+        if not words:
+            return None
+
+        return f"{prefix}{', '.join(words)}{suffix}"
 
     def _apply_vocabulary_casing(self, text: str) -> str:
         """Replace vocabulary words with their canonical casing."""
@@ -91,7 +118,12 @@ class GroqSTT:
 
             prompt = self._build_prompt()
             if prompt:
-                print(f"  [Groq] Using prompt: {prompt[:50]}...")
+                vocab_in_prompt = prompt.count(",") + 1 if "," in prompt else 1
+                total_vocab = len(self.vocabulary)
+                if vocab_in_prompt < total_vocab:
+                    print(f"  [Groq] Using {vocab_in_prompt}/{total_vocab} vocab words (truncated to fit 896 char limit)")
+                else:
+                    print(f"  [Groq] Using prompt with {vocab_in_prompt} vocab words")
 
             # Open file for API call
             with open(temp_path, "rb") as audio_file:

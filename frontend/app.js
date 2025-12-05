@@ -163,7 +163,7 @@ consoleLogger.init();
 const state = {
     // Keys
     modifierPressed: false,
-    optPressed: false,
+    cmdPressed: false,
 
     // Recording
     isRecording: false,
@@ -199,7 +199,7 @@ const state = {
 const elements = {
     modifierKey: document.getElementById('modifierKey'),
     modifierLabel: document.getElementById('modifierLabel'),
-    optKey: document.getElementById('optKey'),
+    cmdKey: document.getElementById('cmdKey'),
     recordingPanel: document.getElementById('recordingPanel'),
     recLabel: document.getElementById('recLabel'),
     recHint: document.getElementById('recHint'),
@@ -683,8 +683,8 @@ function isLeftModifierKey(event) {
     }
 }
 
-function isLeftOptionKey(event) {
-    return event.code === 'AltLeft';
+function isLeftCommandKey(event) {
+    return event.code === 'MetaLeft';
 }
 
 function handleKeyDown(event) {
@@ -696,18 +696,18 @@ function handleKeyDown(event) {
         if (modStatus) modStatus.textContent = 'HELD';
     }
 
-    if (isLeftOptionKey(event)) {
-        state.optPressed = true;
-        elements.optKey?.classList.add('pressed');
-        const optStatus = elements.optKey?.querySelector('.key-status');
-        if (optStatus) optStatus.textContent = 'HELD';
+    if (isLeftCommandKey(event)) {
+        state.cmdPressed = true;
+        elements.cmdKey?.classList.add('pressed');
+        const cmdStatus = elements.cmdKey?.querySelector('.key-status');
+        if (cmdStatus) cmdStatus.textContent = 'HELD';
     }
 
-    if (state.modifierPressed && state.optPressed && !state.isRecording && !state.isProcessing) {
+    if (state.modifierPressed && state.cmdPressed && !state.isRecording && !state.isProcessing) {
         startRecording();
     }
 
-    if (state.modifierPressed && state.optPressed) {
+    if (state.modifierPressed && state.cmdPressed) {
         event.preventDefault();
     }
 }
@@ -721,27 +721,27 @@ function handleKeyUp(event) {
         if (modStatus) modStatus.textContent = '—';
     }
 
-    if (isLeftOptionKey(event)) {
-        state.optPressed = false;
-        elements.optKey?.classList.remove('pressed');
-        const optStatus = elements.optKey?.querySelector('.key-status');
-        if (optStatus) optStatus.textContent = '—';
+    if (isLeftCommandKey(event)) {
+        state.cmdPressed = false;
+        elements.cmdKey?.classList.remove('pressed');
+        const cmdStatus = elements.cmdKey?.querySelector('.key-status');
+        if (cmdStatus) cmdStatus.textContent = '—';
     }
 
-    if (state.isRecording && (!state.modifierPressed || !state.optPressed)) {
+    if (state.isRecording && (!state.modifierPressed || !state.cmdPressed)) {
         stopRecording();
     }
 }
 
 function handleBlur() {
     state.modifierPressed = false;
-    state.optPressed = false;
+    state.cmdPressed = false;
     elements.modifierKey?.classList.remove('pressed');
-    elements.optKey?.classList.remove('pressed');
+    elements.cmdKey?.classList.remove('pressed');
     const modStatus = elements.modifierKey?.querySelector('.key-status');
-    const optStatus = elements.optKey?.querySelector('.key-status');
+    const cmdStatus = elements.cmdKey?.querySelector('.key-status');
     if (modStatus) modStatus.textContent = '—';
-    if (optStatus) optStatus.textContent = '—';
+    if (cmdStatus) cmdStatus.textContent = '—';
 
     if (state.isRecording) {
         stopRecording();

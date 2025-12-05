@@ -118,7 +118,7 @@ class HotkeyClient:
 
     def __init__(self):
         self.left_modifier_pressed = False  # Left Ctrl or Left Shift
-        self.left_opt_pressed = False  # Left Option only
+        self.left_cmd_pressed = False  # Left Command only
         self.is_recording = False
         self.is_processing = False
         self.recording_cancelled = False  # Prevents re-trigger until keys released
@@ -324,8 +324,8 @@ class HotkeyClient:
         """Get human-readable keybinding."""
         return {
             "ctrl_only": "Left Ctrl",
-            "ctrl": "Left Ctrl + Left Option",
-            "shift": "Left Shift + Left Option",
+            "ctrl": "Left Ctrl + Left Command",
+            "shift": "Left Shift + Left Command",
         }.get(self.keybinding, self.keybinding)
 
     def is_left_modifier_key(self, key) -> bool:
@@ -340,14 +340,14 @@ class HotkeyClient:
         if self.keybinding == "ctrl_only":
             return self.left_modifier_pressed  # Only need Ctrl
         else:  # ctrl or shift mode requires both keys
-            return self.left_modifier_pressed and self.left_opt_pressed
+            return self.left_modifier_pressed and self.left_cmd_pressed
 
     def is_trigger_key(self, key) -> bool:
         """Check if key is part of the current recording trigger combination."""
         if self.keybinding == "ctrl_only":
             return key == keyboard.Key.ctrl_l
         else:  # ctrl or shift mode
-            return self.is_left_modifier_key(key) or key == keyboard.Key.alt_l
+            return self.is_left_modifier_key(key) or key == keyboard.Key.cmd_l
 
     def _focus_follows_mouse_loop(self):
         """Background loop that tracks/focuses window under mouse.
@@ -369,8 +369,8 @@ class HotkeyClient:
             try:
                 now = time.time()
 
-                # In raise_on_hover mode, skip when left Option is held (pause FFM)
-                if self._ffm_mode == "raise_on_hover" and self.left_opt_pressed:
+                # In raise_on_hover mode, skip when left Command is held (pause FFM)
+                if self._ffm_mode == "raise_on_hover" and self.left_cmd_pressed:
                     self._ffm_dwell_app = None
                     time.sleep(0.01)
                     continue
@@ -717,7 +717,7 @@ class HotkeyClient:
                 )
                 # Reset key state to prevent stuck keys
                 self.left_modifier_pressed = False
-                self.left_opt_pressed = False
+                self.left_cmd_pressed = False
                 self.stop_recording()
                 break
             time.sleep(0.5)  # Check every 500ms
@@ -792,10 +792,10 @@ class HotkeyClient:
             # Track modifier key states
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = True
-            elif key == keyboard.Key.alt_l:
-                self.left_opt_pressed = True
-            elif key == keyboard.Key.alt_r:
-                pass  # Explicitly ignore right Option
+            elif key == keyboard.Key.cmd_l:
+                self.left_cmd_pressed = True
+            elif key == keyboard.Key.cmd_r:
+                pass  # Explicitly ignore right Command
             else:
                 # Any other key pressed during recording = cancel
                 if self.is_recording:
@@ -822,10 +822,10 @@ class HotkeyClient:
         try:
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = False
-            elif key == keyboard.Key.alt_l:
-                self.left_opt_pressed = False
-            elif key == keyboard.Key.alt_r:
-                pass  # Explicitly ignore right Option
+            elif key == keyboard.Key.cmd_l:
+                self.left_cmd_pressed = False
+            elif key == keyboard.Key.cmd_r:
+                pass  # Explicitly ignore right Command
 
             # Stop recording when trigger condition is no longer met
             if self.is_recording and not self.is_recording_trigger_satisfied():

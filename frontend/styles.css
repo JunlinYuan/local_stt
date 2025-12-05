@@ -591,6 +591,46 @@ body {
     outline-offset: 2px;
 }
 
+/* FFM Mode Select */
+.ffm-mode-select {
+    margin-left: 8px;
+    padding: 6px 8px;
+    background: #1a1a1c;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    color: #ccc;
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23666' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+}
+
+.ffm-mode-select:hover {
+    background-color: #222224;
+    border-color: #3a3a3e;
+}
+
+.ffm-mode-select:focus {
+    border-color: #00d4aa;
+}
+
+body.theme-light .ffm-mode-select {
+    background-color: #f0f0f2;
+    border-color: #d4d4d6;
+    color: #333;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23888' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+}
+
+body.theme-light .ffm-mode-select:hover {
+    background-color: #e8e8ea;
+    border-color: #c0c0c4;
+}
+
 /* ==========================================================================
    Key Indicators
    ========================================================================== */

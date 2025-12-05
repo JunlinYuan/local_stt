@@ -188,6 +188,7 @@ const state = {
         paste_delay: 0.05,
         volume_normalization: true,
         ffm_enabled: true,
+        ffm_mode: 'track_only',
     },
 };
 
@@ -216,6 +217,7 @@ const elements = {
     pasteDelayValue: document.getElementById('pasteDelayValue'),
     normalizeToggle: document.getElementById('normalizeToggle'),
     ffmToggle: document.getElementById('ffmToggle'),
+    ffmModeSelect: document.getElementById('ffmModeSelect'),
     maxRecordingSlider: document.getElementById('maxRecordingSlider'),
     maxRecordingValue: document.getElementById('maxRecordingValue'),
     themeToggle: document.getElementById('themeToggle'),
@@ -340,9 +342,12 @@ function updateSettingsUI(data) {
         elements.normalizeToggle.classList.toggle('active', data.volume_normalization);
     }
 
-    // Update FFM toggle
+    // Update FFM toggle and mode
     if (elements.ffmToggle && data.ffm_enabled !== undefined) {
         elements.ffmToggle.classList.toggle('active', data.ffm_enabled);
+    }
+    if (elements.ffmModeSelect && data.ffm_mode !== undefined) {
+        elements.ffmModeSelect.value = data.ffm_mode;
     }
 
     // Update max recording duration slider
@@ -556,14 +561,21 @@ function initNormalizeToggle() {
 }
 
 function initFfmToggle() {
-    if (!elements.ffmToggle) return;
+    if (elements.ffmToggle) {
+        elements.ffmToggle.addEventListener('click', () => {
+            if (state.isRecording || state.isProcessing) return;
+            // Toggle the current value
+            const newValue = !state.settings.ffm_enabled;
+            setSetting('ffm_enabled', newValue);
+        });
+    }
 
-    elements.ffmToggle.addEventListener('click', () => {
-        if (state.isRecording || state.isProcessing) return;
-        // Toggle the current value
-        const newValue = !state.settings.ffm_enabled;
-        setSetting('ffm_enabled', newValue);
-    });
+    if (elements.ffmModeSelect) {
+        elements.ffmModeSelect.addEventListener('change', () => {
+            if (state.isRecording || state.isProcessing) return;
+            setSetting('ffm_mode', elements.ffmModeSelect.value);
+        });
+    }
 }
 
 function initMaxRecordingSlider() {

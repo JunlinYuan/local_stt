@@ -143,6 +143,7 @@ class HotkeyClient:
 
         # Focus-follows-mouse state (fetched from server settings)
         self._ffm_enabled = True  # Will be updated by fetch_settings()
+        self._ffm_mode = "track_only"  # "track_only" or "raise_on_hover"
         self._ffm_thread: Optional[threading.Thread] = None
         self._ffm_stop = threading.Event()
         self._ffm_last_app: Optional[str] = None
@@ -250,6 +251,12 @@ class HotkeyClient:
             ffm_changed = new_ffm_enabled != self._ffm_enabled
             self._ffm_enabled = new_ffm_enabled
 
+            # Update FFM mode
+            new_ffm_mode = data.get("ffm_mode", "track_only")
+            if new_ffm_mode != self._ffm_mode:
+                print(f"⚙️  FFM mode changed to: {new_ffm_mode}")
+            self._ffm_mode = new_ffm_mode
+
             if ffm_changed:
                 if self._ffm_enabled:
                     self.start_focus_follows_mouse()
@@ -343,19 +350,36 @@ class HotkeyClient:
             return self.is_left_modifier_key(key) or key == keyboard.Key.alt_l
 
     def _focus_follows_mouse_loop(self):
-        """Background loop that tracks window under mouse for paste targeting.
+        """Background loop that tracks/focuses window under mouse.
 
-        Polls mouse position and records which app is under cursor.
-        Does NOT activate/raise windows - just tracks for paste targeting.
+        Behavior depends on ffm_mode setting:
+        - track_only: Just track which app is under cursor (activate at paste time)
+        - raise_on_hover: Activate/raise windows as mouse moves (old behavior)
 
-        Uses debouncing to prevent thrashing:
-        - Dwell: Require mouse to stay over app for 50ms before updating target
+        Uses debouncing to prevent thrashing.
         """
-        print("🖱️  Mouse tracking enabled (paste targets window under cursor)")
+        mode_desc = (
+            "track only (activate at paste)"
+            if self._ffm_mode == "track_only"
+            else "raise on hover"
+        )
+        print(f"🖱️  Mouse tracking enabled ({mode_desc})")
 
         while not self._ffm_stop.is_set():
             try:
                 now = time.time()
+
+                # In raise_on_hover mode, skip when left Option is held (pause FFM)
+                if self._ffm_mode == "raise_on_hover" and self.left_opt_pressed:
+                    self._ffm_dwell_app = None
+                    time.sleep(0.01)
+                    continue
+
+                # In raise_on_hover mode, apply cooldown after focusing
+                if self._ffm_mode == "raise_on_hover":
+                    if now - self._ffm_last_focus_time < self._ffm_cooldown:
+                        time.sleep(0.01)
+                        continue
 
                 app = self._get_app_under_mouse_fast()
 
@@ -368,8 +392,11 @@ class HotkeyClient:
                     elif app != self._ffm_last_app:
                         # Same app, check if dwell threshold met
                         if now - self._ffm_dwell_start >= self._ffm_dwell_threshold:
-                            # Just update tracking, don't activate
                             self._ffm_last_app = app
+                            # In raise_on_hover mode, also activate the app
+                            if self._ffm_mode == "raise_on_hover":
+                                self._focus_app_fast(app)
+                                self._ffm_last_focus_time = now
                 else:
                     # Mouse over excluded app or nothing
                     self._ffm_dwell_app = None
@@ -469,7 +496,7 @@ class HotkeyClient:
         Auto-paste text and restore original clipboard.
 
         Uses tracked app under mouse for targeted paste:
-        1. Briefly activate the target app (if tracking enabled)
+        1. In track_only mode: activate the target app (it wasn't raised on hover)
         2. Save original clipboard
         3. Copy text to clipboard
         4. Paste to now-active app
@@ -478,8 +505,9 @@ class HotkeyClient:
         # Get the app that was under mouse (tracked by FFM loop)
         target_app = self._ffm_last_app if self._ffm_enabled else None
 
-        # Activate the target app so it receives the paste
-        if target_app:
+        # In track_only mode, activate the target app so it receives the paste
+        # (In raise_on_hover mode, the app is already active from hovering)
+        if target_app and self._ffm_mode == "track_only":
             self._focus_app_fast(target_app)
 
         # Save original clipboard
@@ -851,7 +879,11 @@ class HotkeyClient:
         print(f"  Language:         {self.language_display}")
         print(f"  Min duration:     {self.min_recording_duration:.1f}s")
         print(f"  Screen indicator: {indicator_status}")
-        tracking_status = "enabled (paste targets window under cursor)" if self._ffm_enabled else "disabled"
+        if self._ffm_enabled:
+            mode_desc = "track only" if self._ffm_mode == "track_only" else "raise on hover"
+            tracking_status = f"enabled ({mode_desc})"
+        else:
+            tracking_status = "disabled"
         print(f"  Mouse tracking:   {tracking_status}")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")

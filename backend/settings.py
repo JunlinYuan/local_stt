@@ -111,8 +111,15 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
     "ffm_enabled": {
         "default": True,
         "type": "boolean",
-        "description": "Mouse tracking: paste to window under cursor (without raising it)",
+        "description": "Enable mouse tracking for paste targeting",
         "display": lambda v: "On" if v else "Off",
+    },
+    "ffm_mode": {
+        "default": "track_only",
+        "type": "string",
+        "options": ["track_only", "raise_on_hover"],
+        "description": "FFM behavior: track_only (activate at paste) or raise_on_hover (raise as mouse moves)",
+        "display": lambda v: "Track only" if v == "track_only" else "Raise on hover",
     },
 }
 

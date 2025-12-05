@@ -142,16 +142,19 @@
                     </button>
                 </div>
 
-                <!-- Focus-Follows-Mouse Toggle -->
-                <div class="normalize-control" id="ffmControl">
-                    <button type="button" class="normalize-btn active" id="ffmToggle" title="Focus-follows-mouse: paste to window under cursor">
-                        <span class="normalize-icon">🖱️</span>
-                        <span class="normalize-label">FFM</span>
+                <!-- Focus-Follows-Mouse Control -->
+                <div class="ffm-control" id="ffmControl">
+                    <button type="button" class="ffm-toggle active" id="ffmToggle" title="Enable/disable mouse tracking for paste">
+                        <span class="ffm-icon">🖱️</span>
                     </button>
-                    <select id="ffmModeSelect" class="ffm-mode-select" title="FFM Mode: track_only (activate at paste) or raise_on_hover (raise as mouse moves)">
-                        <option value="track_only">Track</option>
-                        <option value="raise_on_hover">Raise</option>
-                    </select>
+                    <div class="ffm-mode-toggle" id="ffmModeToggle">
+                        <button type="button" class="ffm-mode-btn active" data-mode="track_only" title="Track only: activate window at paste time">
+                            <span class="mode-label">Track</span>
+                        </button>
+                        <button type="button" class="ffm-mode-btn" data-mode="raise_on_hover" title="Raise on hover: focus window as mouse moves">
+                            <span class="mode-label">Raise</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Max Recording Duration Slider -->

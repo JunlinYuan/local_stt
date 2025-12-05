@@ -591,44 +591,131 @@ body {
     outline-offset: 2px;
 }
 
-/* FFM Mode Select */
-.ffm-mode-select {
-    margin-left: 8px;
-    padding: 6px 8px;
+/* FFM Control Group */
+.ffm-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ffm-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     background: #1a1a1c;
     border: 1px solid #2a2a2e;
-    border-radius: 6px;
-    color: #ccc;
-    font-size: 11px;
+    border-radius: 8px;
     cursor: pointer;
+    transition: all 0.15s ease;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23666' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 6px center;
-    padding-right: 20px;
 }
 
-.ffm-mode-select:hover {
-    background-color: #222224;
+.ffm-toggle:hover {
+    background: #222224;
     border-color: #3a3a3e;
 }
 
-.ffm-mode-select:focus {
+.ffm-toggle.active {
+    background: #1a1a1c;
     border-color: #00d4aa;
+    box-shadow: 0 0 12px rgba(0, 212, 170, 0.3);
 }
 
-body.theme-light .ffm-mode-select {
-    background-color: #f0f0f2;
+.ffm-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.ffm-toggle:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 2px;
+}
+
+/* FFM Mode Toggle (button group) */
+.ffm-mode-toggle {
+    display: flex;
+    background: #1a1a1c;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.ffm-mode-btn {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none;
+}
+
+.ffm-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ffm-mode-btn.active {
+    background: #2a2a2e;
+    border-color: #00d4aa;
+    box-shadow: 0 0 8px rgba(0, 212, 170, 0.2);
+}
+
+.ffm-mode-btn .mode-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #666;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ffm-mode-btn.active .mode-label {
+    color: #00d4aa;
+}
+
+/* Light theme */
+body.theme-light .ffm-toggle {
+    background: #f0f0f2;
     border-color: #d4d4d6;
-    color: #333;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23888' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
 }
 
-body.theme-light .ffm-mode-select:hover {
-    background-color: #e8e8ea;
+body.theme-light .ffm-toggle:hover {
+    background: #e8e8ea;
     border-color: #c0c0c4;
+}
+
+body.theme-light .ffm-toggle.active {
+    background: #f0f0f2;
+    border-color: var(--accent-ready);
+}
+
+body.theme-light .ffm-mode-toggle {
+    background: #f0f0f2;
+    border-color: #d4d4d6;
+}
+
+body.theme-light .ffm-mode-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body.theme-light .ffm-mode-btn.active {
+    background: #e0e0e2;
+    border-color: var(--accent-ready);
+}
+
+body.theme-light .ffm-mode-btn .mode-label {
+    color: #888;
+}
+
+body.theme-light .ffm-mode-btn.active .mode-label {
+    color: var(--accent-ready);
 }
 
 /* ==========================================================================

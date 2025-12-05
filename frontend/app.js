@@ -217,7 +217,7 @@ const elements = {
     pasteDelayValue: document.getElementById('pasteDelayValue'),
     normalizeToggle: document.getElementById('normalizeToggle'),
     ffmToggle: document.getElementById('ffmToggle'),
-    ffmModeSelect: document.getElementById('ffmModeSelect'),
+    ffmModeToggle: document.getElementById('ffmModeToggle'),
     maxRecordingSlider: document.getElementById('maxRecordingSlider'),
     maxRecordingValue: document.getElementById('maxRecordingValue'),
     themeToggle: document.getElementById('themeToggle'),
@@ -346,8 +346,11 @@ function updateSettingsUI(data) {
     if (elements.ffmToggle && data.ffm_enabled !== undefined) {
         elements.ffmToggle.classList.toggle('active', data.ffm_enabled);
     }
-    if (elements.ffmModeSelect && data.ffm_mode !== undefined) {
-        elements.ffmModeSelect.value = data.ffm_mode;
+    if (elements.ffmModeToggle && data.ffm_mode !== undefined) {
+        const buttons = elements.ffmModeToggle.querySelectorAll('.ffm-mode-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === data.ffm_mode);
+        });
     }
 
     // Update max recording duration slider
@@ -570,10 +573,16 @@ function initFfmToggle() {
         });
     }
 
-    if (elements.ffmModeSelect) {
-        elements.ffmModeSelect.addEventListener('change', () => {
-            if (state.isRecording || state.isProcessing) return;
-            setSetting('ffm_mode', elements.ffmModeSelect.value);
+    if (elements.ffmModeToggle) {
+        const buttons = elements.ffmModeToggle.querySelectorAll('.ffm-mode-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (state.isRecording || state.isProcessing) return;
+                const mode = btn.dataset.mode;
+                if (mode && mode !== state.settings.ffm_mode) {
+                    setSetting('ffm_mode', mode);
+                }
+            });
         });
     }
 }

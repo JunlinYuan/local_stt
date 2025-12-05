@@ -343,31 +343,19 @@ class HotkeyClient:
             return self.is_left_modifier_key(key) or key == keyboard.Key.alt_l
 
     def _focus_follows_mouse_loop(self):
-        """Background loop that implements focus-follows-mouse.
+        """Background loop that tracks window under mouse for paste targeting.
 
-        Polls mouse position and focuses the app under cursor.
-        Pauses when left Option is held (allows moving to dialogs, etc.).
+        Polls mouse position and records which app is under cursor.
+        Does NOT activate/raise windows - just tracks for paste targeting.
 
         Uses debouncing to prevent thrashing:
-        - Cooldown: Don't re-check for 150ms after focusing
-        - Dwell: Require mouse to stay over app for 50ms before focusing
+        - Dwell: Require mouse to stay over app for 50ms before updating target
         """
-        print("🖱️  Focus-follows-mouse enabled (hold Left Option to pause)")
+        print("🖱️  Mouse tracking enabled (paste targets window under cursor)")
 
         while not self._ffm_stop.is_set():
             try:
                 now = time.time()
-
-                # Skip focusing when left Option is held (like Autoraise)
-                if self.left_opt_pressed:
-                    self._ffm_dwell_app = None  # Reset dwell state
-                    time.sleep(0.01)
-                    continue
-
-                # Cooldown after focusing - prevents thrashing from window reordering
-                if now - self._ffm_last_focus_time < self._ffm_cooldown:
-                    time.sleep(0.01)
-                    continue
 
                 app = self._get_app_under_mouse_fast()
 
@@ -380,9 +368,8 @@ class HotkeyClient:
                     elif app != self._ffm_last_app:
                         # Same app, check if dwell threshold met
                         if now - self._ffm_dwell_start >= self._ffm_dwell_threshold:
-                            self._focus_app_fast(app)
+                            # Just update tracking, don't activate
                             self._ffm_last_app = app
-                            self._ffm_last_focus_time = now
                 else:
                     # Mouse over excluded app or nothing
                     self._ffm_dwell_app = None
@@ -390,7 +377,7 @@ class HotkeyClient:
             except Exception:
                 pass
 
-            time.sleep(0.01)  # 10ms polling (was 5ms)
+            time.sleep(0.01)  # 10ms polling
 
     def start_focus_follows_mouse(self):
         """Start the focus-follows-mouse background thread."""
@@ -412,7 +399,7 @@ class HotkeyClient:
         self._ffm_stop.set()
         self._ffm_thread.join(timeout=1.0)
         self._ffm_thread = None
-        print("🖱️  Focus-follows-mouse stopped")
+        print("🖱️  Mouse tracking stopped")
 
     def get_clipboard(self) -> Optional[str]:
         """Get current clipboard content (macOS)."""
@@ -438,15 +425,30 @@ class HotkeyClient:
         except subprocess.CalledProcessError:
             return False
 
-    def simulate_paste(self) -> bool:
-        """Simulate Cmd+V paste using AppleScript (macOS)."""
+    def simulate_paste(self, target_app: Optional[str] = None) -> bool:
+        """Simulate Cmd+V paste using AppleScript (macOS).
+
+        Args:
+            target_app: If provided, send paste to this specific app/process
+                       without activating it. If None, pastes to frontmost app.
+        """
         try:
+            if target_app:
+                # Send keystroke to specific process (doesn't activate/raise)
+                safe_name = target_app.replace("\\", "\\\\").replace('"', '\\"')
+                script = f'''
+                    tell application "System Events"
+                        tell process "{safe_name}"
+                            keystroke "v" using command down
+                        end tell
+                    end tell
+                '''
+            else:
+                # Fallback: paste to frontmost app
+                script = 'tell application "System Events" to keystroke "v" using command down'
+
             subprocess.run(
-                [
-                    "osascript",
-                    "-e",
-                    'tell application "System Events" to keystroke "v" using command down',
-                ],
+                ["osascript", "-e", script],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -466,12 +468,20 @@ class HotkeyClient:
         """
         Auto-paste text and restore original clipboard.
 
-        Focus-follows-mouse keeps the correct app focused, so we just:
-        1. Save original clipboard
-        2. Copy text to clipboard
-        3. Cmd+V to paste (goes to current focus)
-        4. Restore original clipboard
+        Uses tracked app under mouse for targeted paste:
+        1. Briefly activate the target app (if tracking enabled)
+        2. Save original clipboard
+        3. Copy text to clipboard
+        4. Paste to now-active app
+        5. Restore original clipboard
         """
+        # Get the app that was under mouse (tracked by FFM loop)
+        target_app = self._ffm_last_app if self._ffm_enabled else None
+
+        # Activate the target app so it receives the paste
+        if target_app:
+            self._focus_app_fast(target_app)
+
         # Save original clipboard
         original_clipboard = self.get_clipboard()
 
@@ -484,10 +494,13 @@ class HotkeyClient:
         if self.clipboard_sync_delay > 0:
             time.sleep(self.clipboard_sync_delay)
 
-        # Paste to current focus (FFM keeps this correct)
+        # Paste to now-active app (we activated target_app above if needed)
         if not self.simulate_paste():
             print("📋 Text copied to clipboard (paste manually with Cmd+V)")
             return False
+
+        if target_app:
+            print(f"   Target: {target_app}")
 
         # Brief delay for app to read clipboard
         if self.paste_delay > 0:
@@ -838,14 +851,11 @@ class HotkeyClient:
         print(f"  Language:         {self.language_display}")
         print(f"  Min duration:     {self.min_recording_duration:.1f}s")
         print(f"  Screen indicator: {indicator_status}")
-        ffm_status = "enabled" if self._ffm_enabled else "disabled"
-        print(f"  Focus-follows-mouse: {ffm_status}")
+        tracking_status = "enabled (paste targets window under cursor)" if self._ffm_enabled else "disabled"
+        print(f"  Mouse tracking:   {tracking_status}")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
-        print("   Release to transcribe → auto-paste")
-        if self._ffm_enabled:
-            print()
-            print("🖱️  Hold Left Option to pause focus-follows-mouse")
+        print("   Release to transcribe → auto-paste to window under cursor")
         print()
         print("   (Change settings in web UI: http://127.0.0.1:8000)")
         print("   Press Ctrl+C to exit")

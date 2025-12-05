@@ -111,7 +111,7 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
     "ffm_enabled": {
         "default": True,
         "type": "boolean",
-        "description": "Focus-follows-mouse: automatically focus the window under the cursor",
+        "description": "Mouse tracking: paste to window under cursor (without raising it)",
         "display": lambda v: "On" if v else "Off",
     },
 }

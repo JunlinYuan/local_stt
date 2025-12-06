@@ -200,11 +200,12 @@ class VocabularyManager:
             print(f"[Vocabulary] Error saving usage file: {e}")
 
     def _reorder_by_usage(self) -> list[str]:
-        """Return words ordered by usage count (most-used first), then alphabetically."""
+        """Return words ordered by usage count (most-used first), preserving order for ties."""
         with self._usage_lock:
             # Take a snapshot of usage counts to avoid race conditions
             usage_snapshot = self._usage.copy()
-        return sorted(self._words, key=lambda w: (-usage_snapshot.get(w, 0), w.lower()))
+        # Python's sorted() is stable, so words with same usage keep their relative order
+        return sorted(self._words, key=lambda w: -usage_snapshot.get(w, 0))
 
     def record_usage(self, words: list[str]) -> None:
         """

@@ -16,8 +16,10 @@ from pathlib import Path
 
 from groq import Groq
 
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting
+from vocabulary_utils import apply_vocabulary_casing
 
 
 class GroqSTT:
@@ -75,17 +77,6 @@ class GroqSTT:
 
         return f"{prefix}{', '.join(words)}{suffix}"
 
-    def _apply_vocabulary_casing(self, text: str) -> str:
-        """Replace vocabulary words with their canonical casing."""
-        import re
-
-        if not self.vocabulary:
-            return text
-        for word in self.vocabulary:
-            pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
-            text = pattern.sub(word, text)
-        return text
-
     def transcribe(
         self,
         audio_data: bytes,
@@ -121,7 +112,9 @@ class GroqSTT:
                 vocab_in_prompt = prompt.count(",") + 1 if "," in prompt else 1
                 total_vocab = len(self.vocabulary)
                 if vocab_in_prompt < total_vocab:
-                    print(f"  [Groq] Using {vocab_in_prompt}/{total_vocab} vocab words (truncated to fit 896 char limit)")
+                    print(
+                        f"  [Groq] Using {vocab_in_prompt}/{total_vocab} vocab words (truncated to fit 896 char limit)"
+                    )
                 else:
                     print(f"  [Groq] Using prompt with {vocab_in_prompt} vocab words")
 
@@ -146,8 +139,12 @@ class GroqSTT:
 
             full_text = response.text.strip() if response.text else ""
 
-            # Apply canonical casing from vocabulary
-            full_text = self._apply_vocabulary_casing(full_text)
+            # Apply canonical casing from vocabulary and track usage
+            full_text, matched_words = apply_vocabulary_casing(
+                full_text, self.vocabulary
+            )
+            if matched_words:
+                vocabulary.get_manager().record_usage(matched_words)
 
             # Filter profanity (if enabled)
             if get_setting("content_filter"):

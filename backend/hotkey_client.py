@@ -880,7 +880,9 @@ class HotkeyClient:
         print(f"  Min duration:     {self.min_recording_duration:.1f}s")
         print(f"  Screen indicator: {indicator_status}")
         if self._ffm_enabled:
-            mode_desc = "track only" if self._ffm_mode == "track_only" else "raise on hover"
+            mode_desc = (
+                "track only" if self._ffm_mode == "track_only" else "raise on hover"
+            )
             tracking_status = f"enabled ({mode_desc})"
         else:
             tracking_status = "disabled"

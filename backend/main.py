@@ -323,8 +323,11 @@ async def get_vocabulary():
 async def add_vocabulary_word(body: VocabularyWord):
     """Add a single word to vocabulary (appends to file)."""
     manager = vocabulary.get_manager()
-    added = manager.add_word(body.word)
-    return {"vocabulary": manager.words, "added": added, "word": body.word}
+    added, error = manager.add_word(body.word)
+    response = {"vocabulary": manager.words, "added": added, "word": body.word}
+    if error:
+        response["error"] = error
+    return response
 
 
 @app.delete("/api/vocabulary")

@@ -118,7 +118,7 @@ class HotkeyClient:
 
     def __init__(self):
         self.left_modifier_pressed = False  # Left Ctrl or Left Shift
-        self.left_opt_pressed = False  # Left Option only
+        self.left_cmd_pressed = False  # Left Command only
         self.is_recording = False
         self.is_processing = False
         self.recording_cancelled = False  # Prevents re-trigger until keys released
@@ -143,6 +143,7 @@ class HotkeyClient:
 
         # Focus-follows-mouse state (fetched from server settings)
         self._ffm_enabled = True  # Will be updated by fetch_settings()
+        self._ffm_mode = "track_only"  # "track_only" or "raise_on_hover"
         self._ffm_thread: Optional[threading.Thread] = None
         self._ffm_stop = threading.Event()
         self._ffm_last_app: Optional[str] = None
@@ -250,6 +251,12 @@ class HotkeyClient:
             ffm_changed = new_ffm_enabled != self._ffm_enabled
             self._ffm_enabled = new_ffm_enabled
 
+            # Update FFM mode
+            new_ffm_mode = data.get("ffm_mode", "track_only")
+            if new_ffm_mode != self._ffm_mode:
+                print(f"⚙️  FFM mode changed to: {new_ffm_mode}")
+            self._ffm_mode = new_ffm_mode
+
             if ffm_changed:
                 if self._ffm_enabled:
                     self.start_focus_follows_mouse()
@@ -317,8 +324,8 @@ class HotkeyClient:
         """Get human-readable keybinding."""
         return {
             "ctrl_only": "Left Ctrl",
-            "ctrl": "Left Ctrl + Left Option",
-            "shift": "Left Shift + Left Option",
+            "ctrl": "Left Ctrl + Left Command",
+            "shift": "Left Shift + Left Command",
         }.get(self.keybinding, self.keybinding)
 
     def is_left_modifier_key(self, key) -> bool:
@@ -333,41 +340,46 @@ class HotkeyClient:
         if self.keybinding == "ctrl_only":
             return self.left_modifier_pressed  # Only need Ctrl
         else:  # ctrl or shift mode requires both keys
-            return self.left_modifier_pressed and self.left_opt_pressed
+            return self.left_modifier_pressed and self.left_cmd_pressed
 
     def is_trigger_key(self, key) -> bool:
         """Check if key is part of the current recording trigger combination."""
         if self.keybinding == "ctrl_only":
             return key == keyboard.Key.ctrl_l
         else:  # ctrl or shift mode
-            return self.is_left_modifier_key(key) or key == keyboard.Key.alt_l
+            return self.is_left_modifier_key(key) or key == keyboard.Key.cmd_l
 
     def _focus_follows_mouse_loop(self):
-        """Background loop that implements focus-follows-mouse.
+        """Background loop that tracks/focuses window under mouse.
 
-        Polls mouse position and focuses the app under cursor.
-        Pauses when left Option is held (allows moving to dialogs, etc.).
+        Behavior depends on ffm_mode setting:
+        - track_only: Just track which app is under cursor (activate at paste time)
+        - raise_on_hover: Activate/raise windows as mouse moves (old behavior)
 
-        Uses debouncing to prevent thrashing:
-        - Cooldown: Don't re-check for 150ms after focusing
-        - Dwell: Require mouse to stay over app for 50ms before focusing
+        Uses debouncing to prevent thrashing.
         """
-        print("🖱️  Focus-follows-mouse enabled (hold Left Option to pause)")
+        mode_desc = (
+            "track only (activate at paste)"
+            if self._ffm_mode == "track_only"
+            else "raise on hover"
+        )
+        print(f"🖱️  Mouse tracking enabled ({mode_desc})")
 
         while not self._ffm_stop.is_set():
             try:
                 now = time.time()
 
-                # Skip focusing when left Option is held (like Autoraise)
-                if self.left_opt_pressed:
-                    self._ffm_dwell_app = None  # Reset dwell state
+                # In raise_on_hover mode, skip when left Command is held (pause FFM)
+                if self._ffm_mode == "raise_on_hover" and self.left_cmd_pressed:
+                    self._ffm_dwell_app = None
                     time.sleep(0.01)
                     continue
 
-                # Cooldown after focusing - prevents thrashing from window reordering
-                if now - self._ffm_last_focus_time < self._ffm_cooldown:
-                    time.sleep(0.01)
-                    continue
+                # In raise_on_hover mode, apply cooldown after focusing
+                if self._ffm_mode == "raise_on_hover":
+                    if now - self._ffm_last_focus_time < self._ffm_cooldown:
+                        time.sleep(0.01)
+                        continue
 
                 app = self._get_app_under_mouse_fast()
 
@@ -380,9 +392,11 @@ class HotkeyClient:
                     elif app != self._ffm_last_app:
                         # Same app, check if dwell threshold met
                         if now - self._ffm_dwell_start >= self._ffm_dwell_threshold:
-                            self._focus_app_fast(app)
                             self._ffm_last_app = app
-                            self._ffm_last_focus_time = now
+                            # In raise_on_hover mode, also activate the app
+                            if self._ffm_mode == "raise_on_hover":
+                                self._focus_app_fast(app)
+                                self._ffm_last_focus_time = now
                 else:
                     # Mouse over excluded app or nothing
                     self._ffm_dwell_app = None
@@ -390,7 +404,7 @@ class HotkeyClient:
             except Exception:
                 pass
 
-            time.sleep(0.01)  # 10ms polling (was 5ms)
+            time.sleep(0.01)  # 10ms polling
 
     def start_focus_follows_mouse(self):
         """Start the focus-follows-mouse background thread."""
@@ -412,7 +426,7 @@ class HotkeyClient:
         self._ffm_stop.set()
         self._ffm_thread.join(timeout=1.0)
         self._ffm_thread = None
-        print("🖱️  Focus-follows-mouse stopped")
+        print("🖱️  Mouse tracking stopped")
 
     def get_clipboard(self) -> Optional[str]:
         """Get current clipboard content (macOS)."""
@@ -438,15 +452,30 @@ class HotkeyClient:
         except subprocess.CalledProcessError:
             return False
 
-    def simulate_paste(self) -> bool:
-        """Simulate Cmd+V paste using AppleScript (macOS)."""
+    def simulate_paste(self, target_app: Optional[str] = None) -> bool:
+        """Simulate Cmd+V paste using AppleScript (macOS).
+
+        Args:
+            target_app: If provided, send paste to this specific app/process
+                       without activating it. If None, pastes to frontmost app.
+        """
         try:
+            if target_app:
+                # Send keystroke to specific process (doesn't activate/raise)
+                safe_name = target_app.replace("\\", "\\\\").replace('"', '\\"')
+                script = f'''
+                    tell application "System Events"
+                        tell process "{safe_name}"
+                            keystroke "v" using command down
+                        end tell
+                    end tell
+                '''
+            else:
+                # Fallback: paste to frontmost app
+                script = 'tell application "System Events" to keystroke "v" using command down'
+
             subprocess.run(
-                [
-                    "osascript",
-                    "-e",
-                    'tell application "System Events" to keystroke "v" using command down',
-                ],
+                ["osascript", "-e", script],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -466,12 +495,21 @@ class HotkeyClient:
         """
         Auto-paste text and restore original clipboard.
 
-        Focus-follows-mouse keeps the correct app focused, so we just:
-        1. Save original clipboard
-        2. Copy text to clipboard
-        3. Cmd+V to paste (goes to current focus)
-        4. Restore original clipboard
+        Uses tracked app under mouse for targeted paste:
+        1. In track_only mode: activate the target app (it wasn't raised on hover)
+        2. Save original clipboard
+        3. Copy text to clipboard
+        4. Paste to now-active app
+        5. Restore original clipboard
         """
+        # Get the app that was under mouse (tracked by FFM loop)
+        target_app = self._ffm_last_app if self._ffm_enabled else None
+
+        # In track_only mode, activate the target app so it receives the paste
+        # (In raise_on_hover mode, the app is already active from hovering)
+        if target_app and self._ffm_mode == "track_only":
+            self._focus_app_fast(target_app)
+
         # Save original clipboard
         original_clipboard = self.get_clipboard()
 
@@ -484,10 +522,13 @@ class HotkeyClient:
         if self.clipboard_sync_delay > 0:
             time.sleep(self.clipboard_sync_delay)
 
-        # Paste to current focus (FFM keeps this correct)
+        # Paste to now-active app (we activated target_app above if needed)
         if not self.simulate_paste():
             print("📋 Text copied to clipboard (paste manually with Cmd+V)")
             return False
+
+        if target_app:
+            print(f"   Target: {target_app}")
 
         # Brief delay for app to read clipboard
         if self.paste_delay > 0:
@@ -523,8 +564,15 @@ class HotkeyClient:
 
             self.audio_data = []
 
-            # Query current default input device (refreshes on each recording)
-            # This allows hot-swapping microphones without restarting
+            # Refresh PortAudio device list to pick up hot-swapped microphones
+            # Without this, sounddevice uses a stale cached device list
+            try:
+                sd._terminate()
+                sd._initialize()
+            except Exception:
+                pass  # Non-critical if refresh fails
+
+            # Query current default input device
             try:
                 default_input = sd.query_devices(kind="input")
                 device_index = default_input["index"]
@@ -676,7 +724,7 @@ class HotkeyClient:
                 )
                 # Reset key state to prevent stuck keys
                 self.left_modifier_pressed = False
-                self.left_opt_pressed = False
+                self.left_cmd_pressed = False
                 self.stop_recording()
                 break
             time.sleep(0.5)  # Check every 500ms
@@ -751,10 +799,10 @@ class HotkeyClient:
             # Track modifier key states
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = True
-            elif key == keyboard.Key.alt_l:
-                self.left_opt_pressed = True
-            elif key == keyboard.Key.alt_r:
-                pass  # Explicitly ignore right Option
+            elif key == keyboard.Key.cmd_l:
+                self.left_cmd_pressed = True
+            elif key == keyboard.Key.cmd_r:
+                pass  # Explicitly ignore right Command
             else:
                 # Any other key pressed during recording = cancel
                 if self.is_recording:
@@ -781,10 +829,10 @@ class HotkeyClient:
         try:
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = False
-            elif key == keyboard.Key.alt_l:
-                self.left_opt_pressed = False
-            elif key == keyboard.Key.alt_r:
-                pass  # Explicitly ignore right Option
+            elif key == keyboard.Key.cmd_l:
+                self.left_cmd_pressed = False
+            elif key == keyboard.Key.cmd_r:
+                pass  # Explicitly ignore right Command
 
             # Stop recording when trigger condition is no longer met
             if self.is_recording and not self.is_recording_trigger_satisfied():
@@ -838,14 +886,17 @@ class HotkeyClient:
         print(f"  Language:         {self.language_display}")
         print(f"  Min duration:     {self.min_recording_duration:.1f}s")
         print(f"  Screen indicator: {indicator_status}")
-        ffm_status = "enabled" if self._ffm_enabled else "disabled"
-        print(f"  Focus-follows-mouse: {ffm_status}")
+        if self._ffm_enabled:
+            mode_desc = (
+                "track only" if self._ffm_mode == "track_only" else "raise on hover"
+            )
+            tracking_status = f"enabled ({mode_desc})"
+        else:
+            tracking_status = "disabled"
+        print(f"  Mouse tracking:   {tracking_status}")
         print()
         print(f"🎯 Hold {self.get_keybinding_display()} to record")
-        print("   Release to transcribe → auto-paste")
-        if self._ffm_enabled:
-            print()
-            print("🖱️  Hold Left Option to pause focus-follows-mouse")
+        print("   Release to transcribe → auto-paste to window under cursor")
         print()
         print("   (Change settings in web UI: http://127.0.0.1:8000)")
         print("   Press Ctrl+C to exit")

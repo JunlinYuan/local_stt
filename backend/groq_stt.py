@@ -16,8 +16,10 @@ from pathlib import Path
 
 from groq import Groq
 
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting
+from vocabulary_utils import apply_vocabulary_casing
 
 
 class GroqSTT:
@@ -43,21 +45,37 @@ class GroqSTT:
         self.vocabulary = words
 
     def _build_prompt(self) -> str | None:
-        """Build prompt from vocabulary for better recognition."""
+        """Build prompt from vocabulary for better recognition.
+
+        Groq has a 896 character limit on prompts, so we truncate if needed.
+        """
         if not self.vocabulary:
             return None
-        return f"Vocabulary: {', '.join(self.vocabulary)}."
 
-    def _apply_vocabulary_casing(self, text: str) -> str:
-        """Replace vocabulary words with their canonical casing."""
-        import re
+        # Groq's prompt limit
+        max_length = 896
+        prefix = "Vocabulary: "
+        suffix = "."
 
-        if not self.vocabulary:
-            return text
+        # Build prompt, truncating vocabulary if needed
+        words = []
+        current_length = len(prefix) + len(suffix)
+
         for word in self.vocabulary:
-            pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
-            text = pattern.sub(word, text)
-        return text
+            # Account for comma and space between words
+            separator = ", " if words else ""
+            addition = len(separator) + len(word)
+
+            if current_length + addition <= max_length:
+                words.append(word)
+                current_length += addition
+            else:
+                break
+
+        if not words:
+            return None
+
+        return f"{prefix}{', '.join(words)}{suffix}"
 
     def transcribe(
         self,
@@ -91,7 +109,14 @@ class GroqSTT:
 
             prompt = self._build_prompt()
             if prompt:
-                print(f"  [Groq] Using prompt: {prompt[:50]}...")
+                vocab_in_prompt = prompt.count(",") + 1 if "," in prompt else 1
+                total_vocab = len(self.vocabulary)
+                if vocab_in_prompt < total_vocab:
+                    print(
+                        f"  [Groq] Using {vocab_in_prompt}/{total_vocab} vocab words (truncated to fit 896 char limit)"
+                    )
+                else:
+                    print(f"  [Groq] Using prompt with {vocab_in_prompt} vocab words")
 
             # Open file for API call
             with open(temp_path, "rb") as audio_file:
@@ -114,8 +139,12 @@ class GroqSTT:
 
             full_text = response.text.strip() if response.text else ""
 
-            # Apply canonical casing from vocabulary
-            full_text = self._apply_vocabulary_casing(full_text)
+            # Apply canonical casing from vocabulary and track usage
+            full_text, matched_words = apply_vocabulary_casing(
+                full_text, self.vocabulary
+            )
+            if matched_words:
+                vocabulary.get_manager().record_usage(matched_words)
 
             # Filter profanity (if enabled)
             if get_setting("content_filter"):

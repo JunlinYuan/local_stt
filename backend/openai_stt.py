@@ -7,8 +7,10 @@ from pathlib import Path
 
 from openai import OpenAI
 
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting
+from vocabulary_utils import apply_vocabulary_casing
 
 
 class OpenAISTT:
@@ -37,17 +39,6 @@ class OpenAISTT:
         if not self.vocabulary:
             return None
         return f"Vocabulary: {', '.join(self.vocabulary)}."
-
-    def _apply_vocabulary_casing(self, text: str) -> str:
-        """Replace vocabulary words with their canonical casing."""
-        import re
-
-        if not self.vocabulary:
-            return text
-        for word in self.vocabulary:
-            pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
-            text = pattern.sub(word, text)
-        return text
 
     def transcribe(
         self,
@@ -104,8 +95,12 @@ class OpenAISTT:
 
             full_text = response.text.strip() if response.text else ""
 
-            # Apply canonical casing from vocabulary
-            full_text = self._apply_vocabulary_casing(full_text)
+            # Apply canonical casing from vocabulary and track usage
+            full_text, matched_words = apply_vocabulary_casing(
+                full_text, self.vocabulary
+            )
+            if matched_words:
+                vocabulary.get_manager().record_usage(matched_words)
 
             # Filter profanity (if enabled)
             if get_setting("content_filter"):

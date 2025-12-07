@@ -1,6 +1,5 @@
 """Speech-to-text engine using lightning-whisper-mlx for Apple Silicon."""
 
-import re
 import tempfile
 import time
 from pathlib import Path
@@ -9,8 +8,10 @@ from typing import Optional
 from lightning_whisper_mlx import LightningWhisperMLX
 from lightning_whisper_mlx.transcribe import transcribe_audio
 
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting, get_stt_provider
+from vocabulary_utils import apply_vocabulary_casing
 
 
 class STTEngine:
@@ -95,16 +96,6 @@ class STTEngine:
             return ""
         return f"Vocabulary: {', '.join(self.vocabulary)}. "
 
-    def _apply_vocabulary_casing(self, text: str) -> str:
-        """Replace vocabulary words with their canonical casing."""
-        if not self.vocabulary:
-            return text
-        for word in self.vocabulary:
-            # Case-insensitive word boundary replacement
-            pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
-            text = pattern.sub(word, text)
-        return text
-
     def transcribe(
         self,
         audio_data: bytes,
@@ -157,8 +148,12 @@ class STTEngine:
             inference_time = (time.time() - inference_start) * 1000  # ms
 
             full_text = result.get("text", "").strip()
-            # Apply canonical casing from vocabulary
-            full_text = self._apply_vocabulary_casing(full_text)
+            # Apply canonical casing from vocabulary and track usage
+            full_text, matched_words = apply_vocabulary_casing(
+                full_text, self.vocabulary
+            )
+            if matched_words:
+                vocabulary.get_manager().record_usage(matched_words)
             # Filter likely misrecognized profanity (if enabled)
             if get_setting("content_filter"):
                 full_text = get_filter().filter(full_text)

@@ -163,7 +163,7 @@ consoleLogger.init();
 const state = {
     // Keys
     modifierPressed: false,
-    optPressed: false,
+    cmdPressed: false,
 
     // Recording
     isRecording: false,
@@ -188,6 +188,7 @@ const state = {
         paste_delay: 0.05,
         volume_normalization: true,
         ffm_enabled: true,
+        ffm_mode: 'track_only',
     },
 };
 
@@ -198,7 +199,7 @@ const state = {
 const elements = {
     modifierKey: document.getElementById('modifierKey'),
     modifierLabel: document.getElementById('modifierLabel'),
-    optKey: document.getElementById('optKey'),
+    cmdKey: document.getElementById('cmdKey'),
     recordingPanel: document.getElementById('recordingPanel'),
     recLabel: document.getElementById('recLabel'),
     recHint: document.getElementById('recHint'),
@@ -216,6 +217,7 @@ const elements = {
     pasteDelayValue: document.getElementById('pasteDelayValue'),
     normalizeToggle: document.getElementById('normalizeToggle'),
     ffmToggle: document.getElementById('ffmToggle'),
+    ffmModeToggle: document.getElementById('ffmModeToggle'),
     maxRecordingSlider: document.getElementById('maxRecordingSlider'),
     maxRecordingValue: document.getElementById('maxRecordingValue'),
     themeToggle: document.getElementById('themeToggle'),
@@ -340,9 +342,15 @@ function updateSettingsUI(data) {
         elements.normalizeToggle.classList.toggle('active', data.volume_normalization);
     }
 
-    // Update FFM toggle
+    // Update FFM toggle and mode
     if (elements.ffmToggle && data.ffm_enabled !== undefined) {
         elements.ffmToggle.classList.toggle('active', data.ffm_enabled);
+    }
+    if (elements.ffmModeToggle && data.ffm_mode !== undefined) {
+        const buttons = elements.ffmModeToggle.querySelectorAll('.ffm-mode-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === data.ffm_mode);
+        });
     }
 
     // Update max recording duration slider
@@ -556,14 +564,27 @@ function initNormalizeToggle() {
 }
 
 function initFfmToggle() {
-    if (!elements.ffmToggle) return;
+    if (elements.ffmToggle) {
+        elements.ffmToggle.addEventListener('click', () => {
+            if (state.isRecording || state.isProcessing) return;
+            // Toggle the current value
+            const newValue = !state.settings.ffm_enabled;
+            setSetting('ffm_enabled', newValue);
+        });
+    }
 
-    elements.ffmToggle.addEventListener('click', () => {
-        if (state.isRecording || state.isProcessing) return;
-        // Toggle the current value
-        const newValue = !state.settings.ffm_enabled;
-        setSetting('ffm_enabled', newValue);
-    });
+    if (elements.ffmModeToggle) {
+        const buttons = elements.ffmModeToggle.querySelectorAll('.ffm-mode-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (state.isRecording || state.isProcessing) return;
+                const mode = btn.dataset.mode;
+                if (mode && mode !== state.settings.ffm_mode) {
+                    setSetting('ffm_mode', mode);
+                }
+            });
+        });
+    }
 }
 
 function initMaxRecordingSlider() {
@@ -662,8 +683,8 @@ function isLeftModifierKey(event) {
     }
 }
 
-function isLeftOptionKey(event) {
-    return event.code === 'AltLeft';
+function isLeftCommandKey(event) {
+    return event.code === 'MetaLeft';
 }
 
 function handleKeyDown(event) {
@@ -675,18 +696,18 @@ function handleKeyDown(event) {
         if (modStatus) modStatus.textContent = 'HELD';
     }
 
-    if (isLeftOptionKey(event)) {
-        state.optPressed = true;
-        elements.optKey?.classList.add('pressed');
-        const optStatus = elements.optKey?.querySelector('.key-status');
-        if (optStatus) optStatus.textContent = 'HELD';
+    if (isLeftCommandKey(event)) {
+        state.cmdPressed = true;
+        elements.cmdKey?.classList.add('pressed');
+        const cmdStatus = elements.cmdKey?.querySelector('.key-status');
+        if (cmdStatus) cmdStatus.textContent = 'HELD';
     }
 
-    if (state.modifierPressed && state.optPressed && !state.isRecording && !state.isProcessing) {
+    if (state.modifierPressed && state.cmdPressed && !state.isRecording && !state.isProcessing) {
         startRecording();
     }
 
-    if (state.modifierPressed && state.optPressed) {
+    if (state.modifierPressed && state.cmdPressed) {
         event.preventDefault();
     }
 }
@@ -700,27 +721,27 @@ function handleKeyUp(event) {
         if (modStatus) modStatus.textContent = '—';
     }
 
-    if (isLeftOptionKey(event)) {
-        state.optPressed = false;
-        elements.optKey?.classList.remove('pressed');
-        const optStatus = elements.optKey?.querySelector('.key-status');
-        if (optStatus) optStatus.textContent = '—';
+    if (isLeftCommandKey(event)) {
+        state.cmdPressed = false;
+        elements.cmdKey?.classList.remove('pressed');
+        const cmdStatus = elements.cmdKey?.querySelector('.key-status');
+        if (cmdStatus) cmdStatus.textContent = '—';
     }
 
-    if (state.isRecording && (!state.modifierPressed || !state.optPressed)) {
+    if (state.isRecording && (!state.modifierPressed || !state.cmdPressed)) {
         stopRecording();
     }
 }
 
 function handleBlur() {
     state.modifierPressed = false;
-    state.optPressed = false;
+    state.cmdPressed = false;
     elements.modifierKey?.classList.remove('pressed');
-    elements.optKey?.classList.remove('pressed');
+    elements.cmdKey?.classList.remove('pressed');
     const modStatus = elements.modifierKey?.querySelector('.key-status');
-    const optStatus = elements.optKey?.querySelector('.key-status');
+    const cmdStatus = elements.cmdKey?.querySelector('.key-status');
     if (modStatus) modStatus.textContent = '—';
-    if (optStatus) optStatus.textContent = '—';
+    if (cmdStatus) cmdStatus.textContent = '—';
 
     if (state.isRecording) {
         stopRecording();
@@ -1010,7 +1031,10 @@ async function addVocabularyWord(word) {
             updateVocabularyUI();
             console.log(`Added vocabulary word: ${word}`);
         } else {
-            console.log(`Word already exists: ${word}`);
+            // Show error message to user
+            const errorMsg = data.error || 'Word already exists';
+            alert(errorMsg);
+            console.log(`Failed to add word: ${errorMsg}`);
         }
     } catch (error) {
         console.error('Failed to add vocabulary word:', error);

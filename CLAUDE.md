@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Repository:** https://github.com/JunlinYuan/local_stt
+
 ## Project Overview
 
-Speech-to-text application with push-to-talk interface. Supports local processing (lightning-whisper-mlx on Apple Silicon) and cloud APIs (OpenAI, Groq). Features global hotkey recording, auto-paste, and optional focus-follows-mouse.
+Speech-to-text application with push-to-talk interface. Supports local processing (lightning-whisper-mlx on Apple Silicon) and cloud APIs (OpenAI, Groq). Features global hotkey recording, auto-paste to window under mouse cursor.
 
 ## Commands
 
@@ -32,16 +34,16 @@ Global Hotkey Client ─────────HTTP POST───────�
      │
      ├─ System-wide pynput hotkey
      ├─ sounddevice recording
-     ├─ Focus-follows-mouse (toggleable)
-     └─ Auto-paste + clipboard restore
+     ├─ Mouse tracking for targeted paste (toggleable)
+     └─ Auto-paste to window under cursor + clipboard restore
 ```
 
 **Key Flow:**
-1. User holds hotkey (Ctrl, Ctrl+Option, or Shift+Option) → records audio
+1. User holds hotkey (Ctrl, Ctrl+Cmd, or Shift+Cmd) → records audio
 2. On release, audio converted to WAV and sent to backend
 3. Backend routes to configured STT provider (local/OpenAI/Groq)
 4. Result JSON returned with text, language, duration, processing_time
-5. Global client: auto-pastes to focused app, restores clipboard
+5. Global client: auto-pastes to window under mouse (without raising it), restores clipboard
 
 ## Key Files
 
@@ -69,8 +71,8 @@ Settings stored in `backend/settings.json`, managed via web UI or API.
 **Current settings:** (see `SETTINGS_SCHEMA` in `settings.py` for full list)
 - `stt_provider`: `"local"`, `"openai"`, or `"groq"` (fastest)
 - `language`: `""` (auto-detect), `"en"`, `"fr"`, `"zh"`, `"ja"`
-- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Option), or `"shift"` (+Option)
-- `ffm_enabled`: Focus-follows-mouse toggle (default: true)
+- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Cmd), or `"shift"` (+Cmd)
+- `ffm_enabled`: Mouse tracking for targeted paste (default: true)
 - `max_recording_duration`: Safety timeout in seconds (default: 240)
 - `min_recording_duration`: Skip accidental taps (default: 0.3s)
 - `min_volume_rms`: Skip silent recordings (default: 100, 0=disabled)

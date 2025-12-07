@@ -2,9 +2,12 @@
 Vocabulary management with file-based storage and auto-reload.
 
 Vocabulary is stored in vocabulary.txt (one word per line).
+Usage counts are stored in vocabulary_usage.json.
 File is watched for changes and auto-reloaded.
+Words are automatically ordered by usage frequency (most-used first).
 """
 
+import json
 import threading
 import time
 from pathlib import Path
@@ -12,6 +15,10 @@ from typing import Callable
 
 # Vocabulary file location (in backend directory)
 VOCABULARY_FILE = Path(__file__).parent / "vocabulary.txt"
+USAGE_FILE = Path(__file__).parent / "vocabulary_usage.json"
+
+# Maximum vocabulary size (words beyond this limit are ignored when loading from file)
+MAX_VOCABULARY_SIZE = 85
 
 
 class VocabularyManager:
@@ -30,8 +37,13 @@ class VocabularyManager:
         self._watcher_thread: threading.Thread | None = None
         self._stop_watcher = threading.Event()
 
+        # Usage tracking
+        self._usage: dict[str, int] = {}
+        self._usage_lock = threading.Lock()
+
         # Initial load
         self._load_from_file()
+        self._load_usage()
 
     @property
     def words(self) -> list[str]:
@@ -60,6 +72,15 @@ class VocabularyManager:
                 if line and not line.startswith("#"):
                     words.append(line)
 
+            # Truncate to max size (words beyond limit are ignored)
+            total_in_file = len(words)
+            if len(words) > MAX_VOCABULARY_SIZE:
+                words = words[:MAX_VOCABULARY_SIZE]
+                print(
+                    f"[Vocabulary] Warning: File has {total_in_file} words, "
+                    f"only using first {MAX_VOCABULARY_SIZE}"
+                )
+
             self._last_modified = mtime
             old_words = self._words
             self._words = words
@@ -78,46 +99,74 @@ class VocabularyManager:
         return False
 
     def _save_to_file(self) -> None:
-        """Save vocabulary to file."""
+        """Save vocabulary to file, ordered by usage frequency (most-used first)."""
         try:
+            # Reorder by usage before saving
+            self._words = self._reorder_by_usage()
+
             with open(VOCABULARY_FILE, "w", encoding="utf-8") as f:
                 f.write("# Custom vocabulary for speech-to-text\n")
                 f.write("# One word/phrase per line, comments start with #\n")
-                f.write("# Words are case-sensitive (TEMPEST stays TEMPEST)\n\n")
+                f.write("# Words are case-sensitive (TEMPEST stays TEMPEST)\n")
+                f.write("# Ordered by usage frequency (most-used first)\n\n")
                 for word in self._words:
                     f.write(f"{word}\n")
             self._last_modified = VOCABULARY_FILE.stat().st_mtime
-            print(f"[Vocabulary] Saved {len(self._words)} words to file")
+            print(
+                f"[Vocabulary] Saved {len(self._words)} words to file (ordered by usage)"
+            )
         except OSError as e:
             print(f"[Vocabulary] Error saving file: {e}")
 
-    def add_word(self, word: str) -> bool:
+    def add_word(self, word: str) -> tuple[bool, str | None]:
         """
         Add a word to vocabulary (appends to file).
-        Returns True if word was added (not duplicate).
+
+        Returns:
+            Tuple of (success, error_message).
+            - (True, None) if word was added
+            - (False, "reason") if word was not added
         """
         word = word.strip()
         if not word:
-            return False
+            return False, "Empty word"
+
+        # Check vocabulary limit
+        if len(self._words) >= MAX_VOCABULARY_SIZE:
+            print(
+                f"[Vocabulary] Limit reached ({MAX_VOCABULARY_SIZE}), cannot add '{word}'"
+            )
+            return (
+                False,
+                f"Vocabulary limit reached ({MAX_VOCABULARY_SIZE} words). Remove a word first.",
+            )
 
         # Check for duplicate (case-insensitive check, but preserve case)
         if any(w.lower() == word.lower() for w in self._words):
             print(f"[Vocabulary] '{word}' already exists (skipping)")
-            return False
+            return False, "Word already exists"
 
         self._words.append(word)
+
+        # Initialize usage count for new word
+        with self._usage_lock:
+            if word not in self._usage:
+                self._usage[word] = 0
+            self._save_usage()
+
         self._save_to_file()
 
         if self._on_change:
             self._on_change(self._words)
 
         print(f"[Vocabulary] Added: {word}")
-        return True
+        return True, None
 
     def remove_word(self, word: str) -> bool:
         """
         Remove a word from vocabulary.
         Returns True if word was removed.
+        Also cleans up usage data for the removed word.
         """
         word = word.strip()
 
@@ -125,6 +174,12 @@ class VocabularyManager:
         for i, w in enumerate(self._words):
             if w.lower() == word.lower():
                 removed = self._words.pop(i)
+
+                # Clean up usage data
+                with self._usage_lock:
+                    self._usage.pop(removed, None)
+                    self._save_usage()
+
                 self._save_to_file()
 
                 if self._on_change:
@@ -142,6 +197,71 @@ class VocabularyManager:
 
         if self._on_change:
             self._on_change(self._words)
+
+    # -------------------------------------------------------------------------
+    # Usage tracking methods
+    # -------------------------------------------------------------------------
+
+    def _load_usage(self) -> None:
+        """Load usage counts from JSON file."""
+        if not USAGE_FILE.exists():
+            self._usage = {}
+            return
+
+        try:
+            with open(USAGE_FILE, encoding="utf-8") as f:
+                self._usage = json.load(f)
+            print(f"[Vocabulary] Loaded usage data for {len(self._usage)} words")
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"[Vocabulary] Error loading usage file: {e}")
+            self._usage = {}
+
+    def _save_usage(self) -> None:
+        """Save usage counts to JSON file."""
+        try:
+            with open(USAGE_FILE, "w", encoding="utf-8") as f:
+                json.dump(self._usage, f, indent=2, sort_keys=True)
+        except OSError as e:
+            print(f"[Vocabulary] Error saving usage file: {e}")
+
+    def _reorder_by_usage(self) -> list[str]:
+        """Return words ordered by usage count (most-used first), preserving order for ties."""
+        with self._usage_lock:
+            # Take a snapshot of usage counts to avoid race conditions
+            usage_snapshot = self._usage.copy()
+        # Python's sorted() is stable, so words with same usage keep their relative order
+        return sorted(self._words, key=lambda w: -usage_snapshot.get(w, 0))
+
+    def record_usage(self, words: list[str]) -> None:
+        """
+        Record that vocabulary words appeared in a transcription.
+        Thread-safe. Saves immediately.
+
+        Args:
+            words: List of matched vocabulary words
+        """
+        if not words:
+            return
+
+        # Take a snapshot of vocabulary to avoid race conditions with file watcher
+        words_snapshot = self._words.copy()
+
+        with self._usage_lock:
+            for word in words:
+                # Normalize to canonical form (match against our vocabulary)
+                canonical = next(
+                    (w for w in words_snapshot if w.lower() == word.lower()), word
+                )
+                self._usage[canonical] = self._usage.get(canonical, 0) + 1
+            self._save_usage()
+
+        # Log usage update
+        print(f"[Vocabulary] Recorded usage for: {', '.join(words)}")
+
+    def get_usage(self) -> dict[str, int]:
+        """Get usage counts for all vocabulary words."""
+        with self._usage_lock:
+            return {word: self._usage.get(word, 0) for word in self._words}
 
     def start_watcher(self, interval: float = 1.0) -> None:
         """Start background thread to watch for file changes."""

@@ -102,11 +102,11 @@
                     <button class="keybind-btn active" data-binding="ctrl_only" title="Left Ctrl Only">
                         <span class="keybind-keys">⌃</span>
                     </button>
-                    <button class="keybind-btn" data-binding="ctrl" title="Ctrl + Option">
-                        <span class="keybind-keys">⌃ + ⌥</span>
+                    <button class="keybind-btn" data-binding="ctrl" title="Ctrl + Command">
+                        <span class="keybind-keys">⌃ + ⌘</span>
                     </button>
-                    <button class="keybind-btn" data-binding="shift" title="Shift + Option">
-                        <span class="keybind-keys">⇧ + ⌥</span>
+                    <button class="keybind-btn" data-binding="shift" title="Shift + Command">
+                        <span class="keybind-keys">⇧ + ⌘</span>
                     </button>
                 </div>
 
@@ -142,12 +142,19 @@
                     </button>
                 </div>
 
-                <!-- Focus-Follows-Mouse Toggle -->
-                <div class="normalize-control" id="ffmControl">
-                    <button type="button" class="normalize-btn active" id="ffmToggle" title="Focus-follows-mouse: auto-focus window under cursor">
-                        <span class="normalize-icon">🖱️</span>
-                        <span class="normalize-label">FFM</span>
+                <!-- Focus-Follows-Mouse Control -->
+                <div class="ffm-control" id="ffmControl">
+                    <button type="button" class="ffm-toggle active" id="ffmToggle" title="Enable/disable mouse tracking for paste">
+                        <span class="ffm-icon">🖱️</span>
                     </button>
+                    <div class="ffm-mode-toggle" id="ffmModeToggle">
+                        <button type="button" class="ffm-mode-btn active" data-mode="track_only" title="Track only: activate window at paste time">
+                            <span class="mode-label">Track</span>
+                        </button>
+                        <button type="button" class="ffm-mode-btn" data-mode="raise_on_hover" title="Raise on hover: focus window as mouse moves">
+                            <span class="mode-label">Raise</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Max Recording Duration Slider -->
@@ -170,7 +177,7 @@
                     <div class="rec-core"></div>
                 </div>
                 <div class="rec-label" id="recLabel">READY</div>
-                <div class="rec-hint" id="recHint">Hold Ctrl + Option to record</div>
+                <div class="rec-hint" id="recHint">Hold Ctrl + Command to record</div>
             </div>
         </main>
 

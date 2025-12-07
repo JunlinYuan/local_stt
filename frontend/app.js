@@ -1031,7 +1031,10 @@ async function addVocabularyWord(word) {
             updateVocabularyUI();
             console.log(`Added vocabulary word: ${word}`);
         } else {
-            console.log(`Word already exists: ${word}`);
+            // Show error message to user
+            const errorMsg = data.error || 'Word already exists';
+            alert(errorMsg);
+            console.log(`Failed to add word: ${errorMsg}`);
         }
     } catch (error) {
         console.error('Failed to add vocabulary word:', error);

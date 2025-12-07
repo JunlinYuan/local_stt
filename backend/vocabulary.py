@@ -17,6 +17,9 @@ from typing import Callable
 VOCABULARY_FILE = Path(__file__).parent / "vocabulary.txt"
 USAGE_FILE = Path(__file__).parent / "vocabulary_usage.json"
 
+# Maximum vocabulary size (words beyond this limit are ignored when loading from file)
+MAX_VOCABULARY_SIZE = 85
+
 
 class VocabularyManager:
     """Manages vocabulary with file persistence and auto-reload."""
@@ -69,6 +72,15 @@ class VocabularyManager:
                 if line and not line.startswith("#"):
                     words.append(line)
 
+            # Truncate to max size (words beyond limit are ignored)
+            total_in_file = len(words)
+            if len(words) > MAX_VOCABULARY_SIZE:
+                words = words[:MAX_VOCABULARY_SIZE]
+                print(
+                    f"[Vocabulary] Warning: File has {total_in_file} words, "
+                    f"only using first {MAX_VOCABULARY_SIZE}"
+                )
+
             self._last_modified = mtime
             old_words = self._words
             self._words = words
@@ -106,20 +118,33 @@ class VocabularyManager:
         except OSError as e:
             print(f"[Vocabulary] Error saving file: {e}")
 
-    def add_word(self, word: str) -> bool:
+    def add_word(self, word: str) -> tuple[bool, str | None]:
         """
         Add a word to vocabulary (appends to file).
-        Returns True if word was added (not duplicate).
-        New words start with 0 usage count.
+
+        Returns:
+            Tuple of (success, error_message).
+            - (True, None) if word was added
+            - (False, "reason") if word was not added
         """
         word = word.strip()
         if not word:
-            return False
+            return False, "Empty word"
+
+        # Check vocabulary limit
+        if len(self._words) >= MAX_VOCABULARY_SIZE:
+            print(
+                f"[Vocabulary] Limit reached ({MAX_VOCABULARY_SIZE}), cannot add '{word}'"
+            )
+            return (
+                False,
+                f"Vocabulary limit reached ({MAX_VOCABULARY_SIZE} words). Remove a word first.",
+            )
 
         # Check for duplicate (case-insensitive check, but preserve case)
         if any(w.lower() == word.lower() for w in self._words):
             print(f"[Vocabulary] '{word}' already exists (skipping)")
-            return False
+            return False, "Word already exists"
 
         self._words.append(word)
 
@@ -135,7 +160,7 @@ class VocabularyManager:
             self._on_change(self._words)
 
         print(f"[Vocabulary] Added: {word}")
-        return True
+        return True, None
 
     def remove_word(self, word: str) -> bool:
         """

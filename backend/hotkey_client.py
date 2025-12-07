@@ -564,8 +564,15 @@ class HotkeyClient:
 
             self.audio_data = []
 
-            # Query current default input device (refreshes on each recording)
-            # This allows hot-swapping microphones without restarting
+            # Refresh PortAudio device list to pick up hot-swapped microphones
+            # Without this, sounddevice uses a stale cached device list
+            try:
+                sd._terminate()
+                sd._initialize()
+            except Exception:
+                pass  # Non-critical if refresh fails
+
+            # Query current default input device
             try:
                 default_input = sd.query_devices(kind="input")
                 device_index = default_input["index"]

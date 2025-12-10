@@ -180,6 +180,11 @@ const state = {
     ws: null,
     wsConnected: false,
 
+    // Health check state
+    serverHealthy: true,
+    providerAvailable: true,
+    healthCheckInterval: null,
+
     // Settings (from server)
     settings: {
         language: '',
@@ -416,12 +421,94 @@ function connectWebSocket() {
 }
 
 function updateConnectionStatus(connected) {
-    if (connected) {
+    const statusText = elements.connectionStatus.querySelector('span:last-child');
+
+    if (!connected) {
+        // WebSocket disconnected - worst state
+        elements.connectionStatus.classList.remove('connected', 'warning');
+        statusText.textContent = 'Disconnected';
+    } else if (!state.serverHealthy) {
+        // WS connected but server health check failed
         elements.connectionStatus.classList.add('connected');
-        elements.connectionStatus.querySelector('span:last-child').textContent = 'Connected';
+        elements.connectionStatus.classList.add('warning');
+        statusText.textContent = 'Server Error';
+    } else if (!state.providerAvailable) {
+        // Server OK but provider unavailable (e.g., API key missing)
+        elements.connectionStatus.classList.add('connected');
+        elements.connectionStatus.classList.add('warning');
+        statusText.textContent = 'Provider Unavailable';
     } else {
-        elements.connectionStatus.classList.remove('connected');
-        elements.connectionStatus.querySelector('span:last-child').textContent = 'Disconnected';
+        // All good
+        elements.connectionStatus.classList.add('connected');
+        elements.connectionStatus.classList.remove('warning');
+        statusText.textContent = 'Connected';
+    }
+}
+
+// =============================================================================
+// Health Check
+// =============================================================================
+
+async function checkHealth() {
+    try {
+        const response = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const wasHealthy = state.serverHealthy;
+        const wasProviderAvailable = state.providerAvailable;
+
+        state.serverHealthy = data.status === 'ok';
+
+        // Check if current provider is available
+        const currentProvider = data.current_provider || 'local';
+        const providers = data.providers || {};
+        state.providerAvailable = providers[currentProvider] !== false;
+
+        // Log status changes
+        if (wasHealthy && !state.serverHealthy) {
+            console.warn('Server health check failed');
+        } else if (!wasHealthy && state.serverHealthy) {
+            console.log('Server connection restored');
+        }
+
+        if (wasProviderAvailable && !state.providerAvailable) {
+            console.warn(`Provider '${currentProvider}' is not available`);
+        } else if (!wasProviderAvailable && state.providerAvailable) {
+            console.log(`Provider '${currentProvider}' is now available`);
+        }
+
+        // Update status display if there was a change
+        if (wasHealthy !== state.serverHealthy || wasProviderAvailable !== state.providerAvailable) {
+            updateConnectionStatus(state.wsConnected);
+        }
+
+        return state.serverHealthy && state.providerAvailable;
+    } catch (error) {
+        // Network error or timeout
+        if (state.serverHealthy) {
+            console.warn('Health check failed:', error.message);
+        }
+        state.serverHealthy = false;
+        updateConnectionStatus(state.wsConnected);
+        return false;
+    }
+}
+
+function startHealthChecks() {
+    // Initial check
+    checkHealth();
+
+    // Periodic checks every 10 seconds
+    state.healthCheckInterval = setInterval(checkHealth, 10000);
+}
+
+function stopHealthChecks() {
+    if (state.healthCheckInterval) {
+        clearInterval(state.healthCheckInterval);
+        state.healthCheckInterval = null;
     }
 }
 
@@ -1419,6 +1506,9 @@ async function init() {
 
     // Connect WebSocket
     connectWebSocket();
+
+    // Start health checks (detect network/API issues)
+    startHealthChecks();
 
     // Key listeners disabled - web UI is observer-only
     // Transcription results are broadcast from CLI

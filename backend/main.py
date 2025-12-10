@@ -109,6 +109,24 @@ async def index():
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for connectivity monitoring.
+
+    Returns provider availability status for proactive error detection.
+    Used by hotkey_client to detect network/API issues before transcription.
+    """
+    return {
+        "status": "ok",
+        "providers": {
+            "local": True,  # Always available (lazy loads on first use)
+            "openai": is_openai_available(),
+            "groq": is_groq_available(),
+        },
+        "current_provider": settings.get_stt_provider(),
+    }
+
+
 # =============================================================================
 # Settings API
 # =============================================================================

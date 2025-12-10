@@ -186,6 +186,16 @@ body {
     color: var(--text-secondary);
 }
 
+/* Warning state (connected but health check failed) */
+.status-badge.warning .status-dot {
+    background: var(--accent-processing);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent-processing) 40%, transparent);
+}
+
+.status-badge.warning {
+    color: var(--accent-processing);
+}
+
 /* ==========================================================================
    Language Selector
    ========================================================================== */

@@ -42,10 +42,12 @@ class RecordingIndicator:
     Colors:
         - Red (#FF3B30): Recording in progress
         - Blue (#007AFF): Processing/transcribing
+        - Orange (#FF9500): Error/disconnected state
     """
 
     COLOR_RECORDING = "#FF3B30"  # Red
     COLOR_PROCESSING = "#007AFF"  # Blue
+    COLOR_ERROR = "#FF9500"  # Orange (error/disconnected)
 
     def __init__(self, border_width: int = 6):
         self.border_width = border_width
@@ -81,6 +83,11 @@ class RecordingIndicator:
         """Switch to processing indicator (blue border)."""
         self.hide()  # Terminate existing
         self._spawn(self.COLOR_PROCESSING)
+
+    def show_error(self):
+        """Switch to error indicator (orange border)."""
+        self.hide()  # Terminate existing
+        self._spawn(self.COLOR_ERROR)
 
     def hide(self):
         """Hide the indicator by terminating subprocess."""
@@ -156,6 +163,12 @@ class HotkeyClient:
         # Settings polling state
         self._settings_thread: Optional[threading.Thread] = None
         self._settings_stop = threading.Event()
+
+        # Health check state
+        self._server_healthy = True
+        self._provider_available = True
+        self._last_health_check: float = 0.0
+        self._health_check_interval = 5.0  # Check every 5 seconds
 
     def _get_app_under_mouse_fast(self) -> Optional[str]:
         """Fast version using direct Quartz API (no subprocess)."""
@@ -270,12 +283,19 @@ class HotkeyClient:
             return False
 
     def _settings_poll_loop(self):
-        """Background loop that polls for settings changes."""
+        """Background loop that polls for settings changes and health status."""
+        health_check_counter = 0
         while not self._settings_stop.is_set():
             self._settings_stop.wait(2.0)  # Poll every 2 seconds
             if self._settings_stop.is_set():
                 break
             self.fetch_settings(silent=False)
+
+            # Health check every ~5 seconds (every 2-3 settings polls)
+            health_check_counter += 1
+            if health_check_counter >= 2:
+                self.check_health()
+                health_check_counter = 0
 
     def start_settings_polling(self):
         """Start the settings polling background thread."""
@@ -751,14 +771,35 @@ class HotkeyClient:
 
             wav_buffer.seek(0)
 
-            # Send to server (server uses its language setting)
+            # Check health before sending (early warning for network issues)
+            if not self._server_healthy:
+                print("⚠️  Server appears offline - attempting transcription anyway...")
+
+            # Send to server with explicit timeout (server uses its language setting)
+            # The 60s timeout is for the transcription itself; network issues should fail faster
             client = self.get_http_client()
-            response = client.post(
-                "/api/transcribe",
-                files={"file": ("audio.wav", wav_buffer, "audio/wav")},
-            )
-            response.raise_for_status()
-            result = response.json()
+            try:
+                response = client.post(
+                    "/api/transcribe",
+                    files={"file": ("audio.wav", wav_buffer, "audio/wav")},
+                    timeout=60.0,  # Long timeout for actual transcription
+                )
+                response.raise_for_status()
+                result = response.json()
+                # Transcription succeeded - update health state
+                self._server_healthy = True
+            except httpx.TimeoutException:
+                print("❌ Transcription timed out (network issue or server overloaded)")
+                self._server_healthy = False
+                self.indicator.show_error()
+                time.sleep(1.5)  # Show error indicator briefly
+                return
+            except httpx.ConnectError:
+                print("❌ Cannot connect to server - is your network working?")
+                self._server_healthy = False
+                self.indicator.show_error()
+                time.sleep(1.5)  # Show error indicator briefly
+                return
 
             text = result.get("text", "").strip()
 
@@ -852,6 +893,62 @@ class HotkeyClient:
                 response = client.get(f"{SERVER_URL}/")
                 return response.status_code == 200
         except Exception:
+            return False
+
+    def check_health(self) -> bool:
+        """Check server health and provider availability.
+
+        Returns True if server is healthy and current provider is available.
+        Updates internal state for UI feedback.
+        """
+        try:
+            client = self.get_http_client()
+            response = client.get("/api/health", timeout=3.0)
+            response.raise_for_status()
+            data = response.json()
+
+            was_healthy = self._server_healthy
+            was_provider_available = self._provider_available
+
+            self._server_healthy = data.get("status") == "ok"
+
+            # Check if current provider is available
+            current_provider = data.get("current_provider", "local")
+            providers = data.get("providers", {})
+            self._provider_available = providers.get(current_provider, False)
+
+            # Log status changes
+            if was_healthy and not self._server_healthy:
+                print("⚠️  Server health check failed")
+            elif not was_healthy and self._server_healthy:
+                print("✅ Server connection restored")
+
+            if was_provider_available and not self._provider_available:
+                print(f"⚠️  Provider '{current_provider}' is not available")
+            elif not was_provider_available and self._provider_available:
+                print(f"✅ Provider '{current_provider}' is now available")
+
+            self._last_health_check = time.time()
+            return self._server_healthy and self._provider_available
+
+        except httpx.ConnectError:
+            if self._server_healthy:
+                print("⚠️  Lost connection to server")
+            self._server_healthy = False
+            self._provider_available = False
+            self._last_health_check = time.time()
+            return False
+        except httpx.TimeoutException:
+            if self._server_healthy:
+                print("⚠️  Server connection timed out")
+            self._server_healthy = False
+            self._last_health_check = time.time()
+            return False
+        except Exception as e:
+            if self._server_healthy:
+                print(f"⚠️  Health check error: {e}")
+            self._server_healthy = False
+            self._last_health_check = time.time()
             return False
 
     def run(self):

@@ -73,9 +73,9 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "display": lambda v: f"{v:.2f}s",
     },
     "content_filter": {
-        "default": True,
+        "default": False,
         "type": "boolean",
-        "description": "Filter likely misrecognized profanity",
+        "description": "Filter likely misrecognized profanity (causes false positives)",
         "display": lambda v: "On" if v else "Off",
     },
     "min_recording_duration": {

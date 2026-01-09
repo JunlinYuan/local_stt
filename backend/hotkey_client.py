@@ -168,7 +168,7 @@ class HotkeyClient:
         self._server_healthy = True
         self._provider_available = True
         self._last_health_check: float = 0.0
-        self._health_check_interval = 5.0  # Check every 5 seconds
+        self._health_check_interval = 20.0  # Check every 20 seconds
 
     def _get_app_under_mouse_fast(self) -> Optional[str]:
         """Fast version using direct Quartz API (no subprocess)."""
@@ -291,9 +291,9 @@ class HotkeyClient:
                 break
             self.fetch_settings(silent=False)
 
-            # Health check every ~5 seconds (every 2-3 settings polls)
+            # Health check every ~20 seconds (every 10 settings polls)
             health_check_counter += 1
-            if health_check_counter >= 2:
+            if health_check_counter >= 10:
                 self.check_health()
                 health_check_counter = 0
 

@@ -501,8 +501,8 @@ function startHealthChecks() {
     // Initial check
     checkHealth();
 
-    // Periodic checks every 10 seconds
-    state.healthCheckInterval = setInterval(checkHealth, 10000);
+    // Periodic checks every 30 seconds
+    state.healthCheckInterval = setInterval(checkHealth, 30000);
 }
 
 function stopHealthChecks() {

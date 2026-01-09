@@ -1,6 +1,7 @@
 """FastAPI server for local speech-to-text."""
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,17 @@ import vocabulary
 from stt_engine import get_engine, transcribe_audio_with_provider
 from openai_stt import get_openai_stt, is_openai_available
 from groq_stt import get_groq_stt, is_groq_available
+
+
+# Filter out noisy polling requests from access logs
+class PollingFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        return "/api/health" not in message and "/api/settings" not in message
+
+
+# Apply filter to uvicorn access logger
+logging.getLogger("uvicorn.access").addFilter(PollingFilter())
 
 
 @asynccontextmanager

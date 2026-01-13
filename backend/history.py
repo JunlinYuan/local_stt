@@ -1,13 +1,13 @@
 """
 Dictation history management with JSON file storage.
-Stores last 20 transcriptions (text only, newest first).
+Stores last 50 transcriptions (text only, newest first).
 """
 
 import json
 from pathlib import Path
 
 HISTORY_FILE = Path(__file__).parent / "history.json"
-MAX_ENTRIES = 20
+MAX_ENTRIES = 50
 
 
 def _load_history() -> list[str]:

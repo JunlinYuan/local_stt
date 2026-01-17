@@ -4,11 +4,12 @@ import gc
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-import mlx.core as mx
-from lightning_whisper_mlx import LightningWhisperMLX
-from lightning_whisper_mlx.transcribe import transcribe_audio
+# Lazy imports for MLX - only loaded when local transcription is used
+# This saves ~2GB memory when using cloud providers (Groq/OpenAI)
+if TYPE_CHECKING:
+    from lightning_whisper_mlx import LightningWhisperMLX
 
 import vocabulary
 from content_filter import get_filter
@@ -43,6 +44,9 @@ class STTEngine:
 
     def load_model(self) -> None:
         """Load the Whisper model and warm up inference."""
+        # Lazy import MLX libraries - only loaded when local transcription is used
+        from lightning_whisper_mlx import LightningWhisperMLX
+
         quant_str = self.quant or "none"
         print(
             f"Loading model: {self.model_size} (batch_size={self.batch_size}, quant={quant_str})..."
@@ -112,6 +116,9 @@ class STTEngine:
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
         """
+        # Lazy import MLX transcribe function
+        from lightning_whisper_mlx.transcribe import transcribe_audio
+
         # Lazy load model on first use
         if self.model is None or self._model_path is None:
             print("  [STTEngine] Lazy loading model (first local transcription)...")
@@ -201,6 +208,8 @@ class STTEngine:
 
             # Release MLX/Metal memory to prevent accumulation over long sessions
             # Without this, memory grows ~10-15GB over a day of use
+            import mlx.core as mx
+
             mx.clear_memory_cache()
             gc.collect()
 

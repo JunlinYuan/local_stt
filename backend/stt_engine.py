@@ -1,10 +1,12 @@
 """Speech-to-text engine using lightning-whisper-mlx for Apple Silicon."""
 
+import gc
 import tempfile
 import time
 from pathlib import Path
 from typing import Optional
 
+import mlx.core as mx
 from lightning_whisper_mlx import LightningWhisperMLX
 from lightning_whisper_mlx.transcribe import transcribe_audio
 
@@ -196,6 +198,11 @@ class STTEngine:
         finally:
             # Clean up temp file
             Path(temp_path).unlink(missing_ok=True)
+
+            # Release MLX/Metal memory to prevent accumulation over long sessions
+            # Without this, memory grows ~10-15GB over a day of use
+            mx.clear_memory_cache()
+            gc.collect()
 
 
 # Singleton instance

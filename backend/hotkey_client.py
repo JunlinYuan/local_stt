@@ -826,6 +826,7 @@ class HotkeyClient:
         finally:
             self.indicator.hide()  # Hide processing indicator
             self.is_processing = False
+            self.audio_data = []  # Clear audio buffer to free memory
             print()  # Blank line for readability
 
     def on_press(self, key):

@@ -40,7 +40,7 @@ def calculate_audio_rms(audio_data: bytes) -> float:
 def normalize_audio(
     audio_data: bytes,
     target_rms: float = 3000.0,
-    max_gain_db: float = 20.0,
+    max_gain_db: float = 30.0,
 ) -> tuple[bytes, float, float, float]:
     """Apply simple gain normalization to audio volume.
 

@@ -1607,6 +1607,222 @@ body.theme-light .ffm-mode-btn.active .mode-label {
 }
 
 /* ==========================================================================
+   Replacements Toggle & Panel
+   ========================================================================== */
+
+.replacements-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.replacements-toggle:hover {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+}
+
+.replacements-icon {
+    color: var(--accent-ready);
+    font-size: 0.9rem;
+}
+
+.replacements-label {
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+
+.replacements-count {
+    padding: 1px 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    font-size: 0.65rem;
+    color: var(--accent-ready);
+    font-weight: 600;
+}
+
+/* Replacement Add Row (Two Fields) */
+.replacement-add-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    margin-bottom: var(--space-xl);
+}
+
+.replacement-input {
+    flex: 1;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+}
+
+.replacement-input::placeholder {
+    color: var(--text-muted);
+}
+
+.replacement-input:focus {
+    outline: none;
+    border-color: var(--accent-ready);
+    box-shadow: 0 0 30px var(--accent-ready-glow);
+}
+
+.replacement-arrow {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.replacement-add-btn {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-ready);
+    border: none;
+    border-radius: 12px;
+    color: var(--bg-primary);
+    font-size: 1.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 0 25px var(--accent-ready-glow);
+    flex-shrink: 0;
+}
+
+.replacement-add-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px var(--accent-ready-glow);
+}
+
+.replacement-add-btn:active {
+    transform: scale(0.95);
+}
+
+/* Replacement List Items */
+.replacement-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    min-height: 100px;
+}
+
+.replacement-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    animation: itemFadeIn 0.25s ease;
+    transition: all var(--transition-fast);
+}
+
+.replacement-item:hover {
+    border-color: var(--accent-ready);
+    background: rgba(45, 212, 191, 0.03);
+}
+
+.replacement-from {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #f87171;  /* Soft red for "from" */
+}
+
+.replacement-arrow-display {
+    font-size: 1rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.replacement-to {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent-ready);  /* Green for "to" */
+}
+
+.replacement-delete {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.replacement-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--accent-recording);
+    color: var(--accent-recording);
+}
+
+.replacement-hint {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+/* Panel Toggle Button (for enable/disable) */
+.panel-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.panel-toggle-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border-active);
+}
+
+.panel-toggle-btn.active {
+    background: rgba(45, 212, 191, 0.1);
+    border-color: var(--accent-ready);
+    color: var(--accent-ready);
+}
+
+.panel-toggle-btn .toggle-icon {
+    font-size: 0.8rem;
+}
+
+.panel-toggle-btn:not(.active) .toggle-icon {
+    opacity: 0;
+}
+
+/* ==========================================================================
    Console Panel
    ========================================================================== */
 

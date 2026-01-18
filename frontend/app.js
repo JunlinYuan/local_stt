@@ -194,6 +194,7 @@ const state = {
         volume_normalization: true,
         ffm_enabled: true,
         ffm_mode: 'track_only',
+        replacements_enabled: true,
     },
 };
 
@@ -364,6 +365,12 @@ function updateSettingsUI(data) {
     }
     if (elements.maxRecordingValue && data.max_recording_duration_display !== undefined) {
         elements.maxRecordingValue.textContent = data.max_recording_duration_display;
+    }
+
+    // Update replacements enabled toggle
+    if (data.replacements_enabled !== undefined) {
+        state.settings.replacements_enabled = data.replacements_enabled;
+        updateReplacementsEnabledUI();
     }
 }
 
@@ -1469,7 +1476,251 @@ function initHistoryPanel() {
     fetchHistory();
 }
 
-// Global Escape key handler for both panels
+// =============================================================================
+// Replacements Panel
+// =============================================================================
+
+const replacementsElements = {
+    toggle: document.getElementById('replacementsToggle'),
+    count: document.getElementById('replacementsCount'),
+    panelCount: document.getElementById('replacementsPanelCount'),
+    overlay: document.getElementById('replacementsOverlay'),
+    closeBtn: document.getElementById('replacementsPanelClose'),
+    enabledToggle: document.getElementById('replacementsEnabledToggle'),
+    fromInput: document.getElementById('replacementFromInput'),
+    toInput: document.getElementById('replacementToInput'),
+    addBtn: document.getElementById('replacementAddBtn'),
+    list: document.getElementById('replacementsList'),
+};
+
+let replacementRules = [];
+
+async function fetchReplacements() {
+    try {
+        const response = await fetch('/api/replacements');
+        const data = await response.json();
+        replacementRules = data.replacements || [];
+        updateReplacementsUI();
+        console.log(`Replacements loaded: ${replacementRules.length} rules`);
+    } catch (error) {
+        console.error('Failed to fetch replacements:', error);
+    }
+}
+
+async function addReplacement(fromText, toText) {
+    if (!fromText.trim() || !toText.trim()) return;
+
+    try {
+        const response = await fetch('/api/replacements', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from_text: fromText.trim(), to_text: toText.trim() }),
+        });
+        const data = await response.json();
+
+        if (data.added) {
+            replacementRules = data.replacements;
+            updateReplacementsUI();
+            console.log(`Added replacement: "${fromText}" → "${toText}"`);
+        } else {
+            // Show error message to user
+            const errorMsg = data.error || 'Failed to add replacement';
+            alert(errorMsg);
+            console.log(`Failed to add replacement: ${errorMsg}`);
+        }
+    } catch (error) {
+        console.error('Failed to add replacement:', error);
+    }
+}
+
+async function removeReplacement(fromText) {
+    try {
+        const response = await fetch('/api/replacements', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from_text: fromText, to_text: '' }),
+        });
+        const data = await response.json();
+
+        if (data.removed) {
+            replacementRules = data.replacements;
+            updateReplacementsUI();
+            console.log(`Removed replacement: "${fromText}"`);
+        }
+    } catch (error) {
+        console.error('Failed to remove replacement:', error);
+    }
+}
+
+function createReplacementElement(rule) {
+    const div = document.createElement('div');
+    div.className = 'replacement-item';
+    div.dataset.from = rule.from;
+
+    const fromSpan = document.createElement('span');
+    fromSpan.className = 'replacement-from';
+    fromSpan.textContent = rule.from;
+
+    const arrowSpan = document.createElement('span');
+    arrowSpan.className = 'replacement-arrow-display';
+    arrowSpan.textContent = '→';
+
+    const toSpan = document.createElement('span');
+    toSpan.className = 'replacement-to';
+    toSpan.textContent = rule.to;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'replacement-delete';
+    deleteBtn.title = 'Remove';
+    deleteBtn.textContent = '✕';
+
+    div.appendChild(fromSpan);
+    div.appendChild(arrowSpan);
+    div.appendChild(toSpan);
+    div.appendChild(deleteBtn);
+    return div;
+}
+
+async function toggleReplacementsEnabled() {
+    const newValue = !state.settings.replacements_enabled;
+    try {
+        const response = await fetch('/api/settings/replacements_enabled', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: newValue }),
+        });
+        const data = await response.json();
+        state.settings.replacements_enabled = data.replacements_enabled;
+        updateReplacementsEnabledUI();
+        console.log(`Replacements ${newValue ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+        console.error('Failed to toggle replacements:', error);
+    }
+}
+
+function updateReplacementsEnabledUI() {
+    if (replacementsElements.enabledToggle) {
+        const isEnabled = state.settings.replacements_enabled;
+        replacementsElements.enabledToggle.classList.toggle('active', isEnabled);
+        const label = replacementsElements.enabledToggle.querySelector('.toggle-label');
+        if (label) {
+            label.textContent = isEnabled ? 'Enabled' : 'Disabled';
+        }
+    }
+}
+
+function updateReplacementsUI() {
+    // Update quick-access count
+    if (replacementsElements.count) {
+        replacementsElements.count.textContent = replacementRules.length;
+    }
+
+    if (replacementsElements.panelCount) {
+        replacementsElements.panelCount.textContent = replacementRules.length;
+    }
+
+    // Update enabled toggle state
+    updateReplacementsEnabledUI();
+
+    // Update panel list using safe DOM methods
+    if (replacementsElements.list) {
+        replacementsElements.list.replaceChildren();
+
+        if (replacementRules.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'panel-items-empty';
+            emptyDiv.textContent = 'No replacements yet. Add word pairs above to automatically replace text in transcriptions.';
+            replacementsElements.list.appendChild(emptyDiv);
+        } else {
+            replacementRules.forEach(rule => {
+                replacementsElements.list.appendChild(createReplacementElement(rule));
+            });
+        }
+    }
+}
+
+function openReplacementsPanel() {
+    replacementsElements.overlay?.classList.add('active');
+    replacementsElements.fromInput?.focus();
+}
+
+function closeReplacementsPanel() {
+    replacementsElements.overlay?.classList.remove('active');
+}
+
+function initReplacementsPanel() {
+    // Toggle panel on quick-access click
+    replacementsElements.toggle?.addEventListener('click', () => {
+        openReplacementsPanel();
+    });
+
+    // Close panel
+    replacementsElements.closeBtn?.addEventListener('click', closeReplacementsPanel);
+
+    // Enable/disable toggle
+    replacementsElements.enabledToggle?.addEventListener('click', toggleReplacementsEnabled);
+
+    // Close on overlay click (but not panel click)
+    replacementsElements.overlay?.addEventListener('click', (e) => {
+        if (e.target === replacementsElements.overlay) {
+            closeReplacementsPanel();
+        }
+    });
+
+    // Add replacement on button click
+    replacementsElements.addBtn?.addEventListener('click', () => {
+        const fromText = replacementsElements.fromInput?.value;
+        const toText = replacementsElements.toInput?.value;
+        if (fromText && toText) {
+            addReplacement(fromText, toText);
+            replacementsElements.fromInput.value = '';
+            replacementsElements.toInput.value = '';
+            replacementsElements.fromInput.focus();
+        }
+    });
+
+    // Handle Enter key in both inputs
+    const handleEnter = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const fromText = replacementsElements.fromInput?.value;
+            const toText = replacementsElements.toInput?.value;
+            if (fromText && toText) {
+                addReplacement(fromText, toText);
+                replacementsElements.fromInput.value = '';
+                replacementsElements.toInput.value = '';
+                replacementsElements.fromInput.focus();
+            }
+        }
+    };
+    replacementsElements.fromInput?.addEventListener('keydown', handleEnter);
+    replacementsElements.toInput?.addEventListener('keydown', handleEnter);
+
+    // Tab from 'from' to 'to' input
+    replacementsElements.fromInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && !e.shiftKey) {
+            e.preventDefault();
+            replacementsElements.toInput?.focus();
+        }
+    });
+
+    // Remove replacement on delete button click (event delegation)
+    replacementsElements.list?.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.replacement-delete');
+        if (deleteBtn) {
+            const itemEl = deleteBtn.closest('.replacement-item');
+            const fromText = itemEl?.dataset.from;
+            if (fromText) {
+                removeReplacement(fromText);
+            }
+        }
+    });
+
+    // Initial load
+    fetchReplacements();
+}
+
+// Global Escape key handler for all panels
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (vocabElements.overlay?.classList.contains('active')) {
@@ -1477,6 +1728,9 @@ document.addEventListener('keydown', (e) => {
         }
         if (historyElements.overlay?.classList.contains('active')) {
             closeHistoryPanel();
+        }
+        if (replacementsElements.overlay?.classList.contains('active')) {
+            closeReplacementsPanel();
         }
     }
 });
@@ -1503,6 +1757,7 @@ async function init() {
     initMaxRecordingSlider();
     initVocabularyPanel();
     initHistoryPanel();
+    initReplacementsPanel();
 
     // Connect WebSocket
     connectWebSocket();

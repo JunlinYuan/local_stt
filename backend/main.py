@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import history
+import replacements
 import settings
 import vocabulary
 from stt_engine import get_engine, transcribe_audio_with_provider
@@ -138,6 +139,10 @@ async def lifespan(app: FastAPI):
         print("⚠ Groq API key not set (GROQ_API_KEY)", flush=True)
 
     vocab_manager.start_watcher()  # Auto-reload on file changes
+
+    # Initialize replacement manager (no callback needed - text processing only)
+    replacement_manager = replacements.init_manager()
+    replacement_manager.start_watcher()
     log_memory("After API providers init")
 
     # Start memory monitor thread
@@ -153,7 +158,8 @@ async def lifespan(app: FastAPI):
         f"Settings: Provider={provider_display}, "
         f"Language={current['language_display']}, "
         f"Keybinding={current['keybinding_display']}, "
-        f"Vocabulary={len(vocab_manager.words)} words",
+        f"Vocabulary={len(vocab_manager.words)} words, "
+        f"Replacements={len(replacement_manager.replacements)} rules",
         flush=True,
     )
     yield
@@ -161,6 +167,7 @@ async def lifespan(app: FastAPI):
     # Cleanup
     _memory_monitor_stop.set()
     vocab_manager.stop_watcher()
+    replacement_manager.stop_watcher()
 
 
 app = FastAPI(title="Local STT", lifespan=lifespan)
@@ -435,6 +442,55 @@ async def replace_vocabulary(words: list[str]):
     manager = vocabulary.get_manager()
     manager.set_words(words)
     return {"vocabulary": manager.words}
+
+
+# =============================================================================
+# Replacements API
+# =============================================================================
+
+
+class ReplacementRule(BaseModel):
+    """Request body for adding/removing a replacement rule."""
+
+    from_text: str
+    to_text: str = ""  # Optional for DELETE requests
+
+
+@app.get("/api/replacements")
+async def get_replacements():
+    """Get current replacement rules."""
+    manager = replacements.get_manager()
+    return {
+        "replacements": manager.replacements,
+        "file": str(replacements.REPLACEMENTS_FILE),
+    }
+
+
+@app.post("/api/replacements")
+async def add_replacement(body: ReplacementRule):
+    """Add a replacement rule."""
+    manager = replacements.get_manager()
+    added, error = manager.add_replacement(body.from_text, body.to_text)
+    response = {"replacements": manager.replacements, "added": added}
+    if error:
+        response["error"] = error
+    return response
+
+
+@app.delete("/api/replacements")
+async def remove_replacement(body: ReplacementRule):
+    """Remove a replacement rule by its 'from' value."""
+    manager = replacements.get_manager()
+    removed = manager.remove_replacement(body.from_text)
+    return {"replacements": manager.replacements, "removed": removed}
+
+
+@app.put("/api/replacements")
+async def replace_replacements(rules: list[dict]):
+    """Replace entire replacement list (for bulk operations)."""
+    manager = replacements.get_manager()
+    manager.set_replacements(rules)
+    return {"replacements": manager.replacements}
 
 
 # =============================================================================

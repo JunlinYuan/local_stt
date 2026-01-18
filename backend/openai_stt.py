@@ -7,6 +7,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
+import replacements
 import vocabulary
 from content_filter import get_filter
 from settings import get_setting
@@ -101,6 +102,10 @@ class OpenAISTT:
             )
             if matched_words:
                 vocabulary.get_manager().record_usage(matched_words)
+
+            # Apply word replacements (if enabled)
+            if get_setting("replacements_enabled"):
+                full_text = replacements.get_manager().apply_replacements(full_text)
 
             # Filter profanity (if enabled)
             if get_setting("content_filter"):

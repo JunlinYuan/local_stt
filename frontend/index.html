@@ -42,6 +42,11 @@
                     <span class="history-label">HISTORY</span>
                     <span class="history-count" id="historyCount">0</span>
                 </div>
+                <div class="replacements-toggle" id="replacementsToggle" title="Click to manage word replacements">
+                    <span class="replacements-icon">⇄</span>
+                    <span class="replacements-label">REPLACE</span>
+                    <span class="replacements-count" id="replacementsCount">0</span>
+                </div>
             </div>
             <div class="quick-access-right">
                 <div class="model-info">
@@ -216,6 +221,58 @@
                         <span class="file-icon">📁</span>
                         <span class="file-path">vocabulary.txt</span>
                     </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full-Page Replacements Panel -->
+        <div class="fullpage-overlay" id="replacementsOverlay">
+            <div class="fullpage-panel" id="replacementsPanel">
+                <div class="fullpage-panel-header">
+                    <div class="fullpage-panel-title">
+                        <span class="panel-icon">⇄</span>
+                        <span>WORD REPLACEMENTS</span>
+                        <span class="panel-count" id="replacementsPanelCount">0</span>
+                    </div>
+                    <div class="panel-header-actions">
+                        <button class="panel-toggle-btn active" id="replacementsEnabledToggle" title="Enable/disable replacements">
+                            <span class="toggle-icon">✓</span>
+                            <span class="toggle-label">Enabled</span>
+                        </button>
+                        <button class="fullpage-panel-close" id="replacementsPanelClose" title="Close (Esc)">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="fullpage-panel-body">
+                    <!-- Add Replacement Input -->
+                    <div class="replacement-add-row">
+                        <input type="text"
+                               id="replacementFromInput"
+                               class="replacement-input"
+                               placeholder="Replace this..."
+                               autocomplete="off"
+                               spellcheck="false">
+                        <span class="replacement-arrow">→</span>
+                        <input type="text"
+                               id="replacementToInput"
+                               class="replacement-input"
+                               placeholder="With this..."
+                               autocomplete="off"
+                               spellcheck="false">
+                        <button class="replacement-add-btn" id="replacementAddBtn" title="Add replacement">+</button>
+                    </div>
+                    <!-- Replacement List -->
+                    <div class="panel-items-list replacement-list" id="replacementsList">
+                        <!-- Replacements will be populated here -->
+                    </div>
+                </div>
+                <div class="fullpage-panel-footer">
+                    <span class="file-hint">
+                        <span class="file-icon">📁</span>
+                        <span class="file-path">replacements.json</span>
+                    </span>
+                    <span class="replacement-hint">Case-insensitive, whole words only</span>
                 </div>
             </div>
         </div>

@@ -11,6 +11,7 @@ from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from lightning_whisper_mlx import LightningWhisperMLX
 
+import replacements
 import vocabulary
 from content_filter import get_filter
 from settings import get_setting, get_stt_provider
@@ -163,6 +164,9 @@ class STTEngine:
             )
             if matched_words:
                 vocabulary.get_manager().record_usage(matched_words)
+            # Apply word replacements (if enabled)
+            if get_setting("replacements_enabled"):
+                full_text = replacements.get_manager().apply_replacements(full_text)
             # Filter likely misrecognized profanity (if enabled)
             if get_setting("content_filter"):
                 full_text = get_filter().filter(full_text)

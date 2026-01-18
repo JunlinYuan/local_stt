@@ -121,6 +121,12 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "FFM behavior: track_only (activate at paste) or raise_on_hover (raise as mouse moves)",
         "display": lambda v: "Track only" if v == "track_only" else "Raise on hover",
     },
+    "replacements_enabled": {
+        "default": True,
+        "type": "boolean",
+        "description": "Apply word replacements after transcription",
+        "display": lambda v: "On" if v else "Off",
+    },
 }
 
 

@@ -9,12 +9,16 @@ Usage:
     uv run --extra client python hotkey_client.py
 """
 
+import gc
 import io
+import os
+import resource
 import subprocess
 import sys
 import threading
 import time
 import wave
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -22,9 +26,8 @@ import numpy as np
 import sounddevice as sd
 from pynput import keyboard
 
-from pathlib import Path
-
 # macOS APIs for focus-follows-mouse (imported at module level for speed)
+import objc
 from Quartz import (
     CGWindowListCopyWindowInfo,
     kCGWindowListOptionOnScreenOnly,
@@ -32,6 +35,30 @@ from Quartz import (
     CGEventGetLocation,
     CGEventCreate,
 )
+
+
+# =============================================================================
+# Memory monitoring for debugging
+# =============================================================================
+def get_memory_mb() -> float:
+    """Get current process memory in MB."""
+    rusage = resource.getrusage(resource.RUSAGE_SELF)
+    if os.uname().sysname == "Darwin":
+        return rusage.ru_maxrss / (1024 * 1024)
+    return rusage.ru_maxrss / 1024
+
+
+_last_mem = 0.0
+
+
+def log_memory(label: str):
+    """Log memory with delta."""
+    global _last_mem
+    cur = get_memory_mb()
+    delta = cur - _last_mem
+    if abs(delta) > 5:  # Only log if >5MB change
+        print(f"[Mem] {label}: {cur:.0f} MB ({delta:+.0f})", flush=True)
+    _last_mem = cur
 
 
 class RecordingIndicator:
@@ -171,38 +198,43 @@ class HotkeyClient:
         self._health_check_interval = 20.0  # Check every 20 seconds
 
     def _get_app_under_mouse_fast(self) -> Optional[str]:
-        """Fast version using direct Quartz API (no subprocess)."""
-        try:
-            # Get mouse position
-            event = CGEventCreate(None)
-            mouse = CGEventGetLocation(event)
-            mouse_x, mouse_y = mouse.x, mouse.y
+        """Fast version using direct Quartz API (no subprocess).
 
-            # Get all on-screen windows
-            windows = CGWindowListCopyWindowInfo(
-                kCGWindowListOptionOnScreenOnly, kCGNullWindowID
-            )
+        Uses objc.autorelease_pool() to properly release CoreFoundation
+        objects and prevent memory leak (~30MB/30s without cleanup).
+        """
+        with objc.autorelease_pool():
+            try:
+                # Get mouse position
+                event = CGEventCreate(None)
+                mouse = CGEventGetLocation(event)
+                mouse_x, mouse_y = mouse.x, mouse.y
 
-            for win in windows:
-                bounds = win.get("kCGWindowBounds", {})
-                x = bounds.get("X", 0)
-                y = bounds.get("Y", 0)
-                w = bounds.get("Width", 0)
-                h = bounds.get("Height", 0)
-                owner = win.get("kCGWindowOwnerName", "")
-                layer = win.get("kCGWindowLayer", 0)
+                # Get all on-screen windows
+                windows = CGWindowListCopyWindowInfo(
+                    kCGWindowListOptionOnScreenOnly, kCGNullWindowID
+                )
 
-                # Only consider normal windows (layer 0)
-                if layer != 0:
-                    continue
+                for win in windows:
+                    bounds = win.get("kCGWindowBounds", {})
+                    x = bounds.get("X", 0)
+                    y = bounds.get("Y", 0)
+                    w = bounds.get("Width", 0)
+                    h = bounds.get("Height", 0)
+                    owner = win.get("kCGWindowOwnerName", "")
+                    layer = win.get("kCGWindowLayer", 0)
 
-                # Check if mouse is in this window
-                if x <= mouse_x <= x + w and y <= mouse_y <= y + h:
-                    return owner
+                    # Only consider normal windows (layer 0)
+                    if layer != 0:
+                        continue
 
-            return None
-        except Exception:
-            return None
+                    # Check if mouse is in this window
+                    if x <= mouse_x <= x + w and y <= mouse_y <= y + h:
+                        return owner
+
+                return None
+            except Exception:
+                return None
 
     def _focus_app_fast(self, app_name: str) -> bool:
         """Focus app using AppleScript (blocking)."""
@@ -385,7 +417,20 @@ class HotkeyClient:
         )
         print(f"🖱️  Mouse tracking enabled ({mode_desc})")
 
+        # Memory monitoring for FFM loop
+        loop_count = 0
+        last_gc_time = time.time()
+
         while not self._ffm_stop.is_set():
+            loop_count += 1
+
+            # Every 30 seconds: log memory and run GC
+            now_gc = time.time()
+            if now_gc - last_gc_time >= 30.0:
+                gc.collect()
+                log_memory(f"FFM loop ({loop_count} iters)")
+                last_gc_time = now_gc
+                loop_count = 0
             try:
                 now = time.time()
 
@@ -827,6 +872,8 @@ class HotkeyClient:
             self.indicator.hide()  # Hide processing indicator
             self.is_processing = False
             self.audio_data = []  # Clear audio buffer to free memory
+            gc.collect()  # Force cleanup
+            log_memory("After transcription")
             print()  # Blank line for readability
 
     def on_press(self, key):
@@ -1022,7 +1069,13 @@ class HotkeyClient:
 
 
 def main():
+    global _last_mem
+    _last_mem = get_memory_mb()
+    print(f"[Mem] Startup: {_last_mem:.0f} MB", flush=True)
+
     client = HotkeyClient()
+    log_memory("After HotkeyClient init")
+
     client.run()
 
 

@@ -227,6 +227,13 @@ const elements = {
     maxRecordingSlider: document.getElementById('maxRecordingSlider'),
     maxRecordingValue: document.getElementById('maxRecordingValue'),
     themeToggle: document.getElementById('themeToggle'),
+    // Volume indicator elements
+    volumeIndicator: document.getElementById('volumeIndicator'),
+    volumeOriginalFill: document.getElementById('volumeOriginalFill'),
+    volumeOriginalValue: document.getElementById('volumeOriginalValue'),
+    volumeNormalizedFill: document.getElementById('volumeNormalizedFill'),
+    volumeNormalizedValue: document.getElementById('volumeNormalizedValue'),
+    volumeGain: document.getElementById('volumeGain'),
 };
 
 // =============================================================================
@@ -951,6 +958,7 @@ function handleStatusUpdate(data) {
         elements.recordingPanel?.classList.remove('processing');
         elements.recLabel.textContent = 'RECORDING';
         elements.recHint.textContent = 'CLI is recording...';
+        hideVolumeIndicator(); // Hide previous volume display
         console.log('CLI recording started');
     } else {
         // CLI stopped recording, now processing
@@ -980,6 +988,11 @@ function handleTranscriptionResult(result) {
     if (result.language && elements.langBadge) {
         const langCode = result.language.toUpperCase();
         elements.langBadge.textContent = state.settings.language ? state.settings.language.toUpperCase() : langCode;
+    }
+
+    // Show volume indicator if audio_info present (normalization metrics)
+    if (result.audio_info) {
+        showVolumeIndicator(result.audio_info);
     }
 
     // Refresh history to show new entry
@@ -1032,6 +1045,56 @@ function drawWaveform() {
     if (state.isRecording) {
         requestAnimationFrame(drawWaveform);
     }
+}
+
+// =============================================================================
+// Volume Indicator
+// =============================================================================
+
+const VOLUME_MAX_RMS = 5000; // Scale for meter display (target RMS is 3000)
+
+function showVolumeIndicator(audioInfo) {
+    if (!audioInfo || !elements.volumeIndicator) return;
+
+    const { original_rms, processed_rms, normalized, gain_db } = audioInfo;
+
+    // Only show if normalization was applied
+    if (!normalized) {
+        hideVolumeIndicator();
+        return;
+    }
+
+    // Update meter fill widths
+    const originalPercent = Math.min(100, (original_rms / VOLUME_MAX_RMS) * 100);
+    const normalizedPercent = Math.min(100, (processed_rms / VOLUME_MAX_RMS) * 100);
+
+    if (elements.volumeOriginalFill) {
+        elements.volumeOriginalFill.style.width = `${originalPercent}%`;
+    }
+    if (elements.volumeNormalizedFill) {
+        elements.volumeNormalizedFill.style.width = `${normalizedPercent}%`;
+    }
+
+    // Update numeric values
+    if (elements.volumeOriginalValue) {
+        elements.volumeOriginalValue.textContent = Math.round(original_rms);
+    }
+    if (elements.volumeNormalizedValue) {
+        elements.volumeNormalizedValue.textContent = Math.round(processed_rms);
+    }
+
+    // Update gain display
+    if (elements.volumeGain) {
+        const gainText = gain_db >= 0 ? `+${gain_db.toFixed(1)}` : gain_db.toFixed(1);
+        elements.volumeGain.textContent = `Gain: ${gainText}dB`;
+    }
+
+    // Show the indicator
+    elements.volumeIndicator.classList.add('visible');
+}
+
+function hideVolumeIndicator() {
+    elements.volumeIndicator?.classList.remove('visible');
 }
 
 // =============================================================================

@@ -183,6 +183,28 @@
                 </div>
                 <div class="rec-label" id="recLabel">READY</div>
                 <div class="rec-hint" id="recHint">Hold Ctrl + Command to record</div>
+
+                <!-- Volume Level Indicator (shown after transcription when normalization enabled) -->
+                <div class="volume-indicator" id="volumeIndicator">
+                    <div class="volume-label">VOLUME LEVELS</div>
+                    <div class="volume-meters">
+                        <div class="volume-meter-row">
+                            <span class="volume-meter-label">Original</span>
+                            <div class="volume-meter-bar">
+                                <div class="volume-meter-fill" id="volumeOriginalFill"></div>
+                            </div>
+                            <span class="volume-meter-value" id="volumeOriginalValue">—</span>
+                        </div>
+                        <div class="volume-meter-row">
+                            <span class="volume-meter-label">Normalized</span>
+                            <div class="volume-meter-bar">
+                                <div class="volume-meter-fill normalized" id="volumeNormalizedFill"></div>
+                            </div>
+                            <span class="volume-meter-value" id="volumeNormalizedValue">—</span>
+                        </div>
+                    </div>
+                    <div class="volume-gain" id="volumeGain">Gain: +0.0dB</div>
+                </div>
             </div>
         </main>
 

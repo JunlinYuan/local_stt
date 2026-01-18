@@ -285,6 +285,14 @@ def transcribe_audio_with_provider(
 
     provider = get_stt_provider()
 
+    # Build audio_info for frontend volume indicator
+    audio_info = {
+        "original_rms": preprocess_info.get("original_rms", 0),
+        "processed_rms": preprocess_info.get("processed_rms", 0),
+        "gain_db": preprocess_info.get("gain_db", 0),
+        "normalized": preprocess_info.get("normalized", False),
+    }
+
     if provider == "groq":
         from groq_stt import get_groq_stt, is_groq_available
 
@@ -295,6 +303,7 @@ def transcribe_audio_with_provider(
             print("  [Router] Using Groq Whisper API")
             groq_stt = get_groq_stt()
             result = groq_stt.transcribe(audio_data, language)
+            result["audio_info"] = audio_info
             return result
 
     if provider == "openai":
@@ -307,6 +316,7 @@ def transcribe_audio_with_provider(
             print("  [Router] Using OpenAI Whisper API")
             openai_stt = get_openai_stt()
             result = openai_stt.transcribe(audio_data, language)
+            result["audio_info"] = audio_info
             return result
 
     # Default: local MLX model
@@ -314,4 +324,5 @@ def transcribe_audio_with_provider(
     engine = get_engine()
     result = engine.transcribe(audio_data, language)
     result["provider"] = "local"
+    result["audio_info"] = audio_info
     return result

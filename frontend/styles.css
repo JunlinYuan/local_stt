@@ -922,6 +922,120 @@ body.theme-light .ffm-mode-btn.active .mode-label {
 }
 
 /* ==========================================================================
+   Volume Indicator
+   ========================================================================== */
+
+.volume-indicator {
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
+    margin-top: 0;
+    transition:
+        opacity var(--transition-base),
+        max-height var(--transition-base),
+        padding var(--transition-base),
+        margin var(--transition-base);
+}
+
+.volume-indicator.visible {
+    opacity: 1;
+    max-height: 150px;
+    padding: var(--space-md);
+    margin-top: var(--space-lg);
+}
+
+.volume-label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: var(--space-xs);
+}
+
+.volume-meters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.volume-meter-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.volume-meter-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    min-width: 65px;
+    text-align: right;
+    font-weight: 500;
+}
+
+.volume-meter-bar {
+    flex: 1;
+    height: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.volume-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg,
+        #ef4444 0%,
+        #f59e0b 40%,
+        #22c55e 70%,
+        #2dd4bf 100%
+    );
+    width: 0%;
+    transition: width var(--transition-slow);
+    border-radius: 7px;
+}
+
+.volume-meter-fill.normalized {
+    background: linear-gradient(90deg,
+        #2dd4bf 0%,
+        #10b981 100%
+    );
+}
+
+.volume-meter-value {
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.volume-gain {
+    font-size: 0.6rem;
+    color: var(--accent-ready);
+    text-align: center;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-top: var(--space-xs);
+}
+
+/* ==========================================================================
    Waveform
    ========================================================================== */
 

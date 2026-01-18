@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -38,10 +40,61 @@ class PollingFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(PollingFilter())
 
 
+# =============================================================================
+# Memory monitoring for debugging
+# =============================================================================
+def get_memory_mb() -> float:
+    """Get current process memory usage in MB (macOS/Linux)."""
+    try:
+        import resource
+        # Get max resident set size in bytes (macOS) or KB (Linux)
+        rusage = resource.getrusage(resource.RUSAGE_SELF)
+        # macOS returns bytes, Linux returns KB
+        mem_bytes = rusage.ru_maxrss
+        if os.uname().sysname == "Darwin":
+            return mem_bytes / (1024 * 1024)  # bytes to MB
+        else:
+            return mem_bytes / 1024  # KB to MB
+    except Exception:
+        return 0.0
+
+
+_last_memory_mb = 0.0
+_memory_monitor_stop = threading.Event()
+
+
+def _memory_monitor_loop():
+    """Background thread that logs memory every 30 seconds if it changed."""
+    global _last_memory_mb
+    while not _memory_monitor_stop.is_set():
+        _memory_monitor_stop.wait(30.0)
+        if _memory_monitor_stop.is_set():
+            break
+        current_mb = get_memory_mb()
+        delta = current_mb - _last_memory_mb
+        if abs(delta) > 10:  # Only log if changed by >10MB
+            print(f"[Memory] {current_mb:.0f} MB ({delta:+.0f} MB)", flush=True)
+            _last_memory_mb = current_mb
+
+
+def log_memory(label: str):
+    """Log current memory with a label."""
+    global _last_memory_mb
+    current_mb = get_memory_mb()
+    delta = current_mb - _last_memory_mb
+    print(f"[Memory] {label}: {current_mb:.0f} MB ({delta:+.0f} MB)", flush=True)
+    _last_memory_mb = current_mb
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and vocabulary on startup."""
+    global _last_memory_mb
+    _last_memory_mb = get_memory_mb()
+    log_memory("Server starting")
+
     engine = get_engine()
+    log_memory("After get_engine()")
 
     # Initialize vocabulary with callback to update all engines
     def on_vocab_change(words: list[str]):
@@ -60,6 +113,7 @@ async def lifespan(app: FastAPI):
 
     vocab_manager = vocabulary.init_manager(on_change=on_vocab_change)
     engine.set_vocabulary(vocab_manager.words)  # Initial load for local engine
+    log_memory("After vocabulary init")
 
     # Initialize OpenAI STT with vocabulary if API key is available
     if is_openai_available():
@@ -84,6 +138,11 @@ async def lifespan(app: FastAPI):
         print("⚠ Groq API key not set (GROQ_API_KEY)", flush=True)
 
     vocab_manager.start_watcher()  # Auto-reload on file changes
+    log_memory("After API providers init")
+
+    # Start memory monitor thread
+    _memory_monitor_stop.clear()
+    threading.Thread(target=_memory_monitor_loop, daemon=True).start()
 
     # Note: Local model loads lazily on first use (saves ~4GB if using Groq/OpenAI)
 
@@ -100,6 +159,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Cleanup
+    _memory_monitor_stop.set()
     vocab_manager.stop_watcher()
 
 
@@ -291,6 +351,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
         f'← [HTTP] Done in {proc_time:.2f}s [{result_provider}] [Detected: {detected}] "{text_preview}..."',
         flush=True,
     )
+    log_memory(f"After transcription ({result_provider})")
 
     # Save to history if there's text
     transcribed_text = result.get("text", "").strip()

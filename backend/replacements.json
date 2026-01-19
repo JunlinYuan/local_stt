@@ -1,0 +1,32 @@
+{
+  "replacements": [
+    {
+      "from": "Cloud Code",
+      "to": "Claude Code"
+    },
+    {
+      "from": "Clock code",
+      "to": "Claude Code"
+    },
+    {
+      "from": "Claw code",
+      "to": "Claude Code"
+    },
+    {
+      "from": "cloth code",
+      "to": "Claude Code"
+    },
+    {
+      "from": "Amman",
+      "to": "Aman"
+    },
+    {
+      "from": "cloud.md",
+      "to": "CLAUDE.md"
+    },
+    {
+      "from": "claw.md",
+      "to": "CLAUDE.md"
+    }
+  ]
+}

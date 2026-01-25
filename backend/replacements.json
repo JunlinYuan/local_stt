@@ -27,6 +27,22 @@
     {
       "from": "claw.md",
       "to": "CLAUDE.md"
+    },
+    {
+      "from": "Penny",
+      "to": "Phani"
+    },
+    {
+      "from": "Cloud MD",
+      "to": "CLAUDE.md"
+    },
+    {
+      "from": "claude or md",
+      "to": "CLAUDE.md"
+    },
+    {
+      "from": "ak code",
+      "to": "AKCode"
     }
   ]
 }

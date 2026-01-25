@@ -578,8 +578,8 @@ class HotkeyClient:
         # Save original clipboard
         original_clipboard = self.get_clipboard()
 
-        # Copy transcribed text
-        if not self.set_clipboard(text):
+        # Copy transcribed text (with trailing space for sentence continuation)
+        if not self.set_clipboard(text + " "):
             print("Failed to copy to clipboard")
             return False
 

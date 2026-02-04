@@ -8,6 +8,7 @@ Centralizes audio handling for all STT providers:
 """
 
 import struct
+from math import gcd
 
 import numpy as np
 
@@ -16,6 +17,48 @@ from settings import get_min_volume_rms, get_setting
 # WAV format constants
 WAV_HEADER_SIZE = 44
 SAMPLE_RATE = 16000
+
+
+def resample_to_16k(
+    audio: np.ndarray, original_rate: int, target_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Resample audio from original_rate to target_rate using polyphase filtering.
+
+    Applies a proper anti-aliasing low-pass FIR filter before downsampling,
+    preventing the noise artifacts that occur when PortAudio does real-time
+    resampling from a mic's native rate (e.g. 48kHz) to 16kHz.
+
+    Args:
+        audio: Audio samples as np.int16 array
+        original_rate: Source sample rate (e.g. 48000)
+        target_rate: Target sample rate (default: 16000)
+
+    Returns:
+        Resampled np.int16 array at target_rate
+    """
+    if original_rate == target_rate:
+        return audio
+
+    if original_rate <= 0 or target_rate <= 0:
+        raise ValueError(
+            f"Sample rates must be positive: original={original_rate}, target={target_rate}"
+        )
+
+    from scipy.signal import resample_poly
+
+    # Calculate up/down factors, reduced by GCD
+    # e.g., 48000->16000: gcd=16000, up=1, down=3
+    # e.g., 44100->16000: gcd=100, up=160, down=441
+    g = gcd(target_rate, original_rate)
+    up = target_rate // g
+    down = original_rate // g
+
+    # Process in float64 for precision, resample with anti-aliasing filter
+    resampled = resample_poly(audio.astype(np.float64), up, down)
+
+    # Clip to int16 range (filter overshoot can exceed original range)
+    np.clip(resampled, -32768, 32767, out=resampled)
+    return resampled.astype(np.int16)
 
 
 def calculate_audio_rms(audio_data: bytes) -> float:

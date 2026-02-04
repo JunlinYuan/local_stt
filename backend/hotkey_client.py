@@ -159,6 +159,7 @@ class HotkeyClient:
         self.recording_start_time: float = 0.0
         self.audio_data: list[np.ndarray] = []
         self.stream: Optional[sd.InputStream] = None
+        self.native_sample_rate: int = SAMPLE_RATE
         self.lock = threading.Lock()
 
         # Settings from server
@@ -642,9 +643,11 @@ class HotkeyClient:
                 default_input = sd.query_devices(kind="input")
                 device_index = default_input["index"]
                 device_name = default_input["name"]
+                native_rate = int(default_input["default_samplerate"])
             except Exception:
                 device_index = None
                 device_name = "default"
+                native_rate = SAMPLE_RATE
 
             # Try to open audio stream with retry logic
             stream = None
@@ -653,7 +656,7 @@ class HotkeyClient:
                 try:
                     stream = sd.InputStream(
                         device=device_index,
-                        samplerate=SAMPLE_RATE,
+                        samplerate=native_rate,
                         channels=CHANNELS,
                         dtype="int16",
                         callback=self.audio_callback,
@@ -687,9 +690,10 @@ class HotkeyClient:
             self.is_recording = True
             self.recording_start_time = time.time()
             self.stream = stream
+            self.native_sample_rate = native_rate
 
             print("🎤 Recording... (release keys to stop)")
-            print(f"   Using: {device_name}")
+            print(f"   Using: {device_name} @ {native_rate}Hz")
 
             # Notify web UI
             self.send_status(recording=True)
@@ -803,11 +807,14 @@ class HotkeyClient:
                 self.is_processing = False
                 return
 
-            # Combine audio chunks
+            # Combine audio chunks (at native sample rate)
             audio = np.concatenate(self.audio_data)
 
-            # Capture timing diagnostics
-            audio_duration = len(audio) / SAMPLE_RATE
+            # Capture timing diagnostics (use native rate for accurate duration)
+            native_rate = self.native_sample_rate
+            if native_rate <= 0:
+                native_rate = SAMPLE_RATE
+            audio_duration = len(audio) / native_rate
             wall_duration = time.time() - self.recording_start_time
             loss = wall_duration - audio_duration
             loss_pct = (loss / wall_duration * 100) if wall_duration > 0 else 0
@@ -817,7 +824,18 @@ class HotkeyClient:
                 f"loss={loss:.3f}s ({loss_pct:.1f}%)"
             )
 
-            # Convert to WAV bytes
+            # Resample from native rate to 16kHz with proper anti-aliasing
+            if native_rate != SAMPLE_RATE:
+                from audio_utils import resample_to_16k
+
+                pre_len = len(audio)
+                audio = resample_to_16k(audio, native_rate)
+                print(
+                    f"  [Resample] {native_rate}Hz -> {SAMPLE_RATE}Hz | "
+                    f"{pre_len} -> {len(audio)} samples"
+                )
+
+            # Convert to WAV bytes (always 16kHz)
             wav_buffer = io.BytesIO()
             with wave.open(wav_buffer, "wb") as wav_file:
                 wav_file.setnchannels(CHANNELS)

@@ -61,4 +61,6 @@ backend/settings.json
 
 # Debug/temporary files
 backend/filter_log.txt
-backend/debug_audio/
+backend/debug_audio/*.wav
+backend/debug_audio/*_meta.txt
+backend/debug_audio/test_run_*/

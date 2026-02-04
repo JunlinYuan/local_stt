@@ -43,6 +43,18 @@
     {
       "from": "ak code",
       "to": "AKCode"
+    },
+    {
+      "from": "my zoom link",
+      "to": "http://msu.zoom.us/my/junlin"
+    },
+    {
+      "from": "cloud or MD",
+      "to": "CLAUDE.md"
+    },
+    {
+      "from": "cloud.mt",
+      "to": "CLAUDE.md"
     }
   ]
 }

@@ -3,6 +3,7 @@
 import gc
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
@@ -97,22 +98,32 @@ class STTEngine:
         """Set custom vocabulary for biasing transcription."""
         self.vocabulary = words
 
-    def _build_initial_prompt(self, language: str | None = None) -> str:
-        """Build initial_prompt from vocabulary."""
+    def _build_initial_prompt(
+        self, language: str | None = None, max_words: int = 0
+    ) -> str:
+        """Build initial_prompt from vocabulary.
+
+        Args:
+            language: Language code (unused, kept for API consistency)
+            max_words: Max vocabulary words to include (0 = no limit)
+        """
         if not self.vocabulary:
             return ""
-        return f"Vocabulary: {', '.join(self.vocabulary)}. "
+        words = self.vocabulary[:max_words] if max_words > 0 else self.vocabulary
+        return f"Vocabulary: {', '.join(words)}. "
 
     def transcribe(
         self,
         audio_data: bytes,
         language: str | None = None,
+        max_vocab_words: int = 0,
     ) -> dict:
         """Transcribe audio data to text.
 
         Args:
             audio_data: Raw audio bytes (WAV format)
             language: Language code (fr, en, etc.) or None for auto-detect
+            max_vocab_words: Max vocabulary words in prompt (0 = no limit)
 
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
@@ -143,7 +154,9 @@ class STTEngine:
             inference_start = time.time()
 
             # Build initial_prompt from vocabulary for better recognition
-            initial_prompt = self._build_initial_prompt(language)
+            initial_prompt = self._build_initial_prompt(
+                language, max_words=max_vocab_words
+            )
             if initial_prompt:
                 print(f"  [STTEngine] Using initial_prompt: {initial_prompt[:50]}...")
 
@@ -230,6 +243,64 @@ def get_engine() -> STTEngine:
     return _engine
 
 
+def _save_debug_audio(
+    audio_data: bytes,
+    suffix: str,
+    timestamp: str,
+    duration: float,
+) -> Path | None:
+    """Save audio to debug_audio/ directory. Returns path or None on failure."""
+    try:
+        debug_dir = Path(__file__).parent / "debug_audio"
+        debug_dir.mkdir(exist_ok=True)
+        filename = f"{timestamp}_{duration:.1f}s_{suffix}.wav"
+        path = debug_dir / filename
+        path.write_bytes(audio_data)
+        print(f"  [Debug] Saved: {path.name}")
+        return path
+    except Exception as e:
+        print(f"  [Debug] Failed to save audio: {e}")
+        return None
+
+
+def _save_debug_metadata(
+    timestamp: str,
+    preprocess_info: dict,
+    provider: str,
+    language: str | None,
+    language_override: str | None,
+    vocab_words_used: int,
+    result: dict,
+) -> None:
+    """Write companion metadata file for debug audio."""
+    try:
+        debug_dir = Path(__file__).parent / "debug_audio"
+        path = debug_dir / f"{timestamp}_meta.txt"
+        duration = preprocess_info.get("duration", 0)
+        lines = [
+            f"Timestamp: {timestamp}",
+            f"Duration: {duration:.2f}s",
+            f"Provider: {provider}",
+            f"Language setting: {language or 'AUTO'}",
+        ]
+        if language_override:
+            lines.append(f"Language override: {language_override} (short clip)")
+        lines += [
+            f"Detected language: {result.get('language', '?')}",
+            f"RMS (original): {preprocess_info.get('original_rms', 0):.0f}",
+            f"RMS (processed): {preprocess_info.get('processed_rms', 0):.0f}",
+            f"Gain: {preprocess_info.get('gain_db', 0):+.1f}dB",
+            f"Normalized: {preprocess_info.get('normalized', False)}",
+            f"Padded: {preprocess_info.get('padded', False)}",
+            f"Vocab words in prompt: {vocab_words_used}",
+            f"Transcription: {result.get('text', '')}",
+            f"Processing time: {result.get('processing_time', 0):.2f}s",
+        ]
+        path.write_text("\n".join(lines) + "\n")
+    except Exception as e:
+        print(f"  [Debug] Failed to save metadata: {e}")
+
+
 def transcribe_audio_with_provider(
     audio_data: bytes,
     language: str | None = None,
@@ -250,9 +321,19 @@ def transcribe_audio_with_provider(
     from audio_utils import preprocess_audio
 
     start_time = time.time()
+    save_debug = get_setting("save_debug_audio")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:18]  # Include ms
 
-    # Preprocess audio (normalize + volume check)
+    # Save raw audio before any preprocessing
+    raw_duration = (
+        max(0, (len(audio_data) - 44) / (16000 * 2)) if len(audio_data) > 44 else 0
+    )
+    if save_debug:
+        _save_debug_audio(audio_data, "raw", timestamp, raw_duration)
+
+    # Preprocess audio (normalize + volume check + silence padding)
     audio_data, preprocess_info = preprocess_audio(audio_data)
+    audio_duration = preprocess_info.get("duration", 0)
 
     # Log preprocessing results
     if preprocess_info.get("normalized"):
@@ -270,6 +351,10 @@ def transcribe_audio_with_provider(
             f"  [Audio] RMS: {preprocess_info['original_rms']:.0f} (normalization disabled)"
         )
 
+    # Diagnostic: flag short clips
+    if audio_duration > 0 and audio_duration < 3.0:
+        print(f"  [SHORT CLIP] {audio_duration:.1f}s — accuracy may be reduced")
+
     # Early return if audio too quiet
     if preprocess_info.get("skipped"):
         print("  [Audio] Audio too quiet, skipping transcription")
@@ -283,7 +368,34 @@ def transcribe_audio_with_provider(
             "provider": "none",
         }
 
+    # Short clip language override: force a specific language for clips < 3s
+    language_override = None
+    if language is None and audio_duration > 0 and audio_duration < 3.0:
+        override = get_setting("short_clip_language_override")
+        if override:
+            language_override = override
+            language = override
+            print(
+                f"  [Language] Short clip override: AUTO -> {override.upper()} "
+                f"({audio_duration:.1f}s < 3.0s)"
+            )
+
+    # Short clip vocab limit
+    max_vocab_words = 0
+    if audio_duration > 0 and audio_duration < 3.0:
+        limit = get_setting("short_clip_vocab_limit")
+        if limit and limit > 0:
+            max_vocab_words = int(limit)
+            print(f"  [Vocab] Short clip limit: {max_vocab_words} words")
+
     provider = get_stt_provider()
+
+    # Save final preprocessed audio (exact bytes sent to STT)
+    if save_debug:
+        lang_tag = language or "auto"
+        _save_debug_audio(
+            audio_data, f"{provider}_{lang_tag}_final", timestamp, audio_duration
+        )
 
     # Build audio_info for frontend volume indicator
     audio_info = {
@@ -292,6 +404,8 @@ def transcribe_audio_with_provider(
         "gain_db": preprocess_info.get("gain_db", 0),
         "normalized": preprocess_info.get("normalized", False),
     }
+
+    result = None
 
     if provider == "groq":
         from groq_stt import get_groq_stt, is_groq_available
@@ -302,11 +416,12 @@ def transcribe_audio_with_provider(
         else:
             print("  [Router] Using Groq Whisper API")
             groq_stt = get_groq_stt()
-            result = groq_stt.transcribe(audio_data, language)
+            result = groq_stt.transcribe(
+                audio_data, language, max_vocab_words=max_vocab_words
+            )
             result["audio_info"] = audio_info
-            return result
 
-    if provider == "openai":
+    if result is None and provider == "openai":
         from openai_stt import get_openai_stt, is_openai_available
 
         if not is_openai_available():
@@ -315,14 +430,36 @@ def transcribe_audio_with_provider(
         else:
             print("  [Router] Using OpenAI Whisper API")
             openai_stt = get_openai_stt()
-            result = openai_stt.transcribe(audio_data, language)
+            result = openai_stt.transcribe(
+                audio_data, language, max_vocab_words=max_vocab_words
+            )
             result["audio_info"] = audio_info
-            return result
 
-    # Default: local MLX model
-    print("  [Router] Using local lightning-whisper-mlx")
-    engine = get_engine()
-    result = engine.transcribe(audio_data, language)
-    result["provider"] = "local"
-    result["audio_info"] = audio_info
+    if result is None:
+        # Default: local MLX model
+        print("  [Router] Using local lightning-whisper-mlx")
+        engine = get_engine()
+        result = engine.transcribe(
+            audio_data, language, max_vocab_words=max_vocab_words
+        )
+        result["provider"] = "local"
+        result["audio_info"] = audio_info
+
+    # Save debug metadata after transcription
+    if save_debug:
+        vocab_mgr = vocabulary.get_manager()
+        total_vocab = len(vocab_mgr.words) if vocab_mgr else 0
+        vocab_used = (
+            min(max_vocab_words, total_vocab) if max_vocab_words > 0 else total_vocab
+        )
+        _save_debug_metadata(
+            timestamp,
+            preprocess_info,
+            provider,
+            language,
+            language_override,
+            vocab_used,
+            result,
+        )
+
     return result

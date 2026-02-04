@@ -806,6 +806,17 @@ class HotkeyClient:
             # Combine audio chunks
             audio = np.concatenate(self.audio_data)
 
+            # Capture timing diagnostics
+            audio_duration = len(audio) / SAMPLE_RATE
+            wall_duration = time.time() - self.recording_start_time
+            loss = wall_duration - audio_duration
+            loss_pct = (loss / wall_duration * 100) if wall_duration > 0 else 0
+            print(
+                f"  [Capture] {len(self.audio_data)} chunks | "
+                f"audio={audio_duration:.2f}s | wall={wall_duration:.2f}s | "
+                f"loss={loss:.3f}s ({loss_pct:.1f}%)"
+            )
+
             # Convert to WAV bytes
             wav_buffer = io.BytesIO()
             with wave.open(wav_buffer, "wb") as wav_file:

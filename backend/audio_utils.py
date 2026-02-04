@@ -7,6 +7,8 @@ Centralizes audio handling for all STT providers:
 - Audio preprocessing pipeline
 """
 
+import struct
+
 import numpy as np
 
 from settings import get_min_volume_rms, get_setting
@@ -92,6 +94,49 @@ def normalize_audio(
     return header + samples_out.tobytes(), current_rms, gain_db, final_rms
 
 
+def add_silence_padding(
+    audio_data: bytes,
+    pre_silence_ms: int = 100,
+    post_silence_ms: int = 200,
+) -> bytes:
+    """Add silence padding before and after audio.
+
+    Helps Whisper models which were trained on 30-second clips with natural
+    starts/stops. Padding reduces edge artifacts on short clips.
+
+    Args:
+        audio_data: Raw WAV file bytes (with 44-byte header)
+        pre_silence_ms: Milliseconds of silence to add before audio
+        post_silence_ms: Milliseconds of silence to add after audio
+
+    Returns:
+        Padded WAV bytes with updated header
+    """
+    if len(audio_data) <= WAV_HEADER_SIZE:
+        return audio_data
+
+    header = bytearray(audio_data[:WAV_HEADER_SIZE])
+    samples = np.frombuffer(audio_data[WAV_HEADER_SIZE:], dtype=np.int16)
+
+    pre_samples = (pre_silence_ms * SAMPLE_RATE) // 1000
+    post_samples = (post_silence_ms * SAMPLE_RATE) // 1000
+
+    padded = np.concatenate(
+        [
+            np.zeros(pre_samples, dtype=np.int16),
+            samples,
+            np.zeros(post_samples, dtype=np.int16),
+        ]
+    )
+
+    # Update WAV header sizes
+    data_size = len(padded) * 2
+    struct.pack_into("<I", header, 40, data_size)
+    struct.pack_into("<I", header, 4, data_size + 36)
+
+    return bytes(header) + padded.tobytes()
+
+
 def preprocess_audio(audio_data: bytes) -> tuple[bytes, dict]:
     """Main preprocessing pipeline for audio before transcription.
 
@@ -131,6 +176,22 @@ def preprocess_audio(audio_data: bytes) -> tuple[bytes, dict]:
         original_rms = calculate_audio_rms(audio_data)
         info["original_rms"] = original_rms
         info["processed_rms"] = original_rms
+
+    # Add silence padding for short clips if enabled
+    if (
+        get_setting("silence_padding")
+        and info["duration"] > 0
+        and info["duration"] < 5.0
+    ):
+        original_duration = info["duration"]
+        audio_data = add_silence_padding(audio_data)
+        info["padded"] = True
+        # Recalculate duration after padding
+        info["duration"] = (len(audio_data) - WAV_HEADER_SIZE) / (SAMPLE_RATE * 2)
+        print(
+            f"  [Audio] Added silence padding to {original_duration:.1f}s clip "
+            f"(100ms pre + 200ms post) -> {info['duration']:.1f}s"
+        )
 
     # Volume threshold check (use processed RMS for comparison)
     min_rms = get_min_volume_rms()

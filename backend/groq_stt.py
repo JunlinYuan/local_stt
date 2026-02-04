@@ -45,13 +45,18 @@ class GroqSTT:
         """Set custom vocabulary for biasing transcription."""
         self.vocabulary = words
 
-    def _build_prompt(self) -> str | None:
+    def _build_prompt(self, max_words: int = 0) -> str | None:
         """Build prompt from vocabulary for better recognition.
 
         Groq has a 896 character limit on prompts, so we truncate if needed.
+
+        Args:
+            max_words: Max vocabulary words to include (0 = no limit, still subject to 896 char limit)
         """
         if not self.vocabulary:
             return None
+
+        vocab = self.vocabulary[:max_words] if max_words > 0 else self.vocabulary
 
         # Groq's prompt limit
         max_length = 896
@@ -62,7 +67,7 @@ class GroqSTT:
         words = []
         current_length = len(prefix) + len(suffix)
 
-        for word in self.vocabulary:
+        for word in vocab:
             # Account for comma and space between words
             separator = ", " if words else ""
             addition = len(separator) + len(word)
@@ -82,12 +87,14 @@ class GroqSTT:
         self,
         audio_data: bytes,
         language: str | None = None,
+        max_vocab_words: int = 0,
     ) -> dict:
         """Transcribe audio data using Groq Whisper API.
 
         Args:
             audio_data: Raw audio bytes (WAV format)
             language: Language code (fr, en, etc.) or None for auto-detect
+            max_vocab_words: Max vocabulary words in prompt (0 = no limit)
 
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
@@ -108,7 +115,7 @@ class GroqSTT:
             # --- API call ---
             inference_start = time.time()
 
-            prompt = self._build_prompt()
+            prompt = self._build_prompt(max_words=max_vocab_words)
             if prompt:
                 vocab_in_prompt = prompt.count(",") + 1 if "," in prompt else 1
                 total_vocab = len(self.vocabulary)

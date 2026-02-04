@@ -61,3 +61,4 @@ backend/settings.json
 
 # Debug/temporary files
 backend/filter_log.txt
+backend/debug_audio/

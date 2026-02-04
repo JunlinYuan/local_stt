@@ -127,6 +127,33 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "description": "Apply word replacements after transcription",
         "display": lambda v: "On" if v else "Off",
     },
+    "save_debug_audio": {
+        "default": False,
+        "type": "boolean",
+        "description": "Save raw + final audio files to debug_audio/ for diagnosis",
+        "display": lambda v: "On" if v else "Off",
+    },
+    "short_clip_language_override": {
+        "default": "",
+        "type": "string",
+        "options": ["", "en", "fr", "zh", "ja"],
+        "description": "Force this language for short clips (<3s) when main language is AUTO (empty = disabled)",
+        "display": lambda v: v.upper() if v else "Off",
+    },
+    "short_clip_vocab_limit": {
+        "default": 0,
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "description": "Max vocabulary words in prompt for clips under 3s (0 = no limit)",
+        "display": lambda v: str(int(v)) if v > 0 else "Off",
+    },
+    "silence_padding": {
+        "default": False,
+        "type": "boolean",
+        "description": "Add silence padding (100ms pre + 200ms post) to short recordings (<5s)",
+        "display": lambda v: "On" if v else "Off",
+    },
 }
 
 

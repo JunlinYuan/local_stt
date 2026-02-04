@@ -35,22 +35,29 @@ class OpenAISTT:
         """Set custom vocabulary for biasing transcription."""
         self.vocabulary = words
 
-    def _build_prompt(self) -> str | None:
-        """Build prompt from vocabulary for better recognition."""
+    def _build_prompt(self, max_words: int = 0) -> str | None:
+        """Build prompt from vocabulary for better recognition.
+
+        Args:
+            max_words: Max vocabulary words to include (0 = no limit)
+        """
         if not self.vocabulary:
             return None
-        return f"Vocabulary: {', '.join(self.vocabulary)}."
+        words = self.vocabulary[:max_words] if max_words > 0 else self.vocabulary
+        return f"Vocabulary: {', '.join(words)}."
 
     def transcribe(
         self,
         audio_data: bytes,
         language: str | None = None,
+        max_vocab_words: int = 0,
     ) -> dict:
         """Transcribe audio data using OpenAI Whisper API.
 
         Args:
             audio_data: Raw audio bytes (WAV format)
             language: Language code (fr, en, etc.) or None for auto-detect
+            max_vocab_words: Max vocabulary words in prompt (0 = no limit)
 
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
@@ -71,7 +78,7 @@ class OpenAISTT:
             # --- API call ---
             inference_start = time.time()
 
-            prompt = self._build_prompt()
+            prompt = self._build_prompt(max_words=max_vocab_words)
             if prompt:
                 print(f"  [OpenAI] Using prompt: {prompt[:50]}...")
 

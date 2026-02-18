@@ -142,6 +142,18 @@ SERVER_URL = "http://127.0.0.1:8000"
 SAMPLE_RATE = 16000
 CHANNELS = 1
 
+# Modifier keys that should be silently ignored (not cancel recording).
+# Covers right-side keys and Option/Alt keys which are never used as triggers.
+# Note: non-trigger LEFT modifiers (e.g., Left Shift in ctrl_only mode) are NOT here —
+# they intentionally fall to the else branch and cancel recording as a safety measure.
+IGNORED_MODIFIER_KEYS = {
+    keyboard.Key.ctrl_r,
+    keyboard.Key.shift_r,
+    keyboard.Key.alt_l,
+    keyboard.Key.alt_r,
+    keyboard.Key.cmd_r,
+}
+
 
 class HotkeyClient:
     """Global hotkey listener for speech-to-text.
@@ -169,6 +181,7 @@ class HotkeyClient:
         self.clipboard_sync_delay = 0.025  # Will be fetched from server (25ms)
         self.paste_delay = 0.025  # Will be fetched from server (25ms)
         self.max_recording_duration = 240  # Will be fetched from server (4 min default)
+        self.save_debug_audio = False  # Debug mode: saves audio files + logs key events
 
         # Persistent HTTP client for server communication (reused across calls)
         self._http_client: Optional[httpx.Client] = None
@@ -188,6 +201,10 @@ class HotkeyClient:
         self._ffm_dwell_app: Optional[str] = None  # App mouse is dwelling on
         self._ffm_dwell_threshold: float = 0.05  # Require 50ms dwell before focusing
 
+        # FFM optimization: mouse position caching
+        self._ffm_last_mouse_x: float = 0.0
+        self._ffm_last_mouse_y: float = 0.0
+
         # Settings polling state
         self._settings_thread: Optional[threading.Thread] = None
         self._settings_stop = threading.Event()
@@ -198,20 +215,20 @@ class HotkeyClient:
         self._last_health_check: float = 0.0
         self._health_check_interval = 20.0  # Check every 20 seconds
 
-    def _get_app_under_mouse_fast(self) -> Optional[str]:
-        """Fast version using direct Quartz API (no subprocess).
+    def _get_mouse_position(self) -> tuple:
+        """Get current mouse position (cheap Quartz call)."""
+        event = CGEventCreate(None)
+        mouse = CGEventGetLocation(event)
+        return mouse.x, mouse.y
+
+    def _get_app_at_position(self, mouse_x: float, mouse_y: float) -> Optional[str]:
+        """Find which app owns the window at the given position.
 
         Uses objc.autorelease_pool() to properly release CoreFoundation
         objects and prevent memory leak (~30MB/30s without cleanup).
         """
         with objc.autorelease_pool():
             try:
-                # Get mouse position
-                event = CGEventCreate(None)
-                mouse = CGEventGetLocation(event)
-                mouse_x, mouse_y = mouse.x, mouse.y
-
-                # Get all on-screen windows
                 windows = CGWindowListCopyWindowInfo(
                     kCGWindowListOptionOnScreenOnly, kCGNullWindowID
                 )
@@ -225,17 +242,20 @@ class HotkeyClient:
                     owner = win.get("kCGWindowOwnerName", "")
                     layer = win.get("kCGWindowLayer", 0)
 
-                    # Only consider normal windows (layer 0)
                     if layer != 0:
                         continue
 
-                    # Check if mouse is in this window
                     if x <= mouse_x <= x + w and y <= mouse_y <= y + h:
                         return owner
 
                 return None
             except Exception:
                 return None
+
+    def _get_app_under_mouse_fast(self) -> Optional[str]:
+        """Get app under mouse cursor (convenience wrapper)."""
+        mx, my = self._get_mouse_position()
+        return self._get_app_at_position(mx, my)
 
     def _focus_app_fast(self, app_name: str) -> bool:
         """Focus app using AppleScript (blocking)."""
@@ -291,6 +311,7 @@ class HotkeyClient:
             self.clipboard_sync_delay = data.get("clipboard_sync_delay", 0.025)
             self.paste_delay = data.get("paste_delay", 0.025)
             self.max_recording_duration = data.get("max_recording_duration", 240)
+            self.save_debug_audio = data.get("save_debug_audio", False)
 
             # Detect FFM setting change and start/stop dynamically
             new_ffm_enabled = data.get("ffm_enabled", True)
@@ -422,6 +443,12 @@ class HotkeyClient:
         loop_count = 0
         last_gc_time = time.time()
 
+        # Adaptive polling: slow when mouse idle, fast when moving
+        poll_idle = 0.2  # 200ms when mouse stationary
+        poll_active = 0.05  # 50ms when mouse moving
+        poll = poll_active  # Start active
+        delta_threshold = 2.0  # Pixels — ignore sub-pixel jitter
+
         while not self._ffm_stop.is_set():
             loop_count += 1
 
@@ -438,39 +465,50 @@ class HotkeyClient:
                 # In raise_on_hover mode, skip when left Command is held (pause FFM)
                 if self._ffm_mode == "raise_on_hover" and self.left_cmd_pressed:
                     self._ffm_dwell_app = None
-                    time.sleep(0.01)
+                    time.sleep(poll)
                     continue
 
                 # In raise_on_hover mode, apply cooldown after focusing
                 if self._ffm_mode == "raise_on_hover":
                     if now - self._ffm_last_focus_time < self._ffm_cooldown:
-                        time.sleep(0.01)
+                        time.sleep(poll)
                         continue
 
-                app = self._get_app_under_mouse_fast()
+                # Cheap: get mouse position only
+                mouse_x, mouse_y = self._get_mouse_position()
+                dx = abs(mouse_x - self._ffm_last_mouse_x)
+                dy = abs(mouse_y - self._ffm_last_mouse_y)
+
+                if dx <= delta_threshold and dy <= delta_threshold:
+                    # Mouse hasn't moved — skip expensive window query
+                    poll = poll_idle
+                    time.sleep(poll)
+                    continue
+
+                # Mouse moved — update cache and do expensive lookup
+                self._ffm_last_mouse_x = mouse_x
+                self._ffm_last_mouse_y = mouse_y
+                poll = poll_active
+
+                app = self._get_app_at_position(mouse_x, mouse_y)
 
                 if app and app not in ("Dock", "Control Center", "Notification Center"):
-                    # Track dwell time on this app
                     if app != self._ffm_dwell_app:
-                        # Mouse moved to new app, start dwell timer
                         self._ffm_dwell_app = app
                         self._ffm_dwell_start = now
                     elif app != self._ffm_last_app:
-                        # Same app, check if dwell threshold met
                         if now - self._ffm_dwell_start >= self._ffm_dwell_threshold:
                             self._ffm_last_app = app
-                            # In raise_on_hover mode, also activate the app
                             if self._ffm_mode == "raise_on_hover":
                                 self._focus_app_fast(app)
                                 self._ffm_last_focus_time = now
                 else:
-                    # Mouse over excluded app or nothing
                     self._ffm_dwell_app = None
 
             except Exception:
                 pass
 
-            time.sleep(0.01)  # 10ms polling
+            time.sleep(poll)
 
     def start_focus_follows_mouse(self):
         """Start the focus-follows-mouse background thread."""
@@ -914,13 +952,16 @@ class HotkeyClient:
         Cancels recording if any non-trigger key is pressed.
         """
         try:
-            # Track modifier key states
+            if self.save_debug_audio:
+                print(f"[key] press: {key!r}", flush=True)
+
+            # Track modifier key states (only LEFT-side trigger keys)
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = True
             elif key == keyboard.Key.cmd_l:
                 self.left_cmd_pressed = True
-            elif key == keyboard.Key.cmd_r:
-                pass  # Explicitly ignore right Command
+            elif key in IGNORED_MODIFIER_KEYS:
+                return  # Explicitly ignore non-trigger modifiers
             else:
                 # Any other key pressed during recording = cancel
                 if self.is_recording:
@@ -945,12 +986,15 @@ class HotkeyClient:
         Only responds to LEFT-side modifier keys.
         """
         try:
+            if self.save_debug_audio:
+                print(f"[key] release: {key!r}", flush=True)
+
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = False
             elif key == keyboard.Key.cmd_l:
                 self.left_cmd_pressed = False
-            elif key == keyboard.Key.cmd_r:
-                pass  # Explicitly ignore right Command
+            elif key in IGNORED_MODIFIER_KEYS:
+                return  # Explicitly ignore non-trigger modifiers
 
             # Stop recording when trigger condition is no longer met
             if self.is_recording and not self.is_recording_trigger_satisfied():

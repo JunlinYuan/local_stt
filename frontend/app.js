@@ -1341,13 +1341,13 @@ function initVocabularyPanel() {
 // =============================================================================
 
 const historyElements = {
-    toggle: document.getElementById('historyToggle'),
-    count: document.getElementById('historyCount'),
+    section: document.getElementById('historySection'),
     panelCount: document.getElementById('historyPanelCount'),
-    overlay: document.getElementById('historyOverlay'),
-    closeBtn: document.getElementById('historyPanelClose'),
     clearBtn: document.getElementById('historyClearBtn'),
     list: document.getElementById('historyList'),
+    searchInput: document.getElementById('historySearchInput'),
+    searchCount: document.getElementById('historySearchCount'),
+    searchClear: document.getElementById('historySearchClear'),
 };
 
 let historyEntries = [];
@@ -1419,7 +1419,7 @@ async function copyHistoryEntry(index, entryEl) {
     }
 }
 
-function createHistoryEntryElement(text, index) {
+function createHistoryEntryElement(text, index, searchQuery) {
     const entry = document.createElement('div');
     entry.className = 'history-entry';
     entry.dataset.index = index;
@@ -1435,7 +1435,13 @@ function createHistoryEntryElement(text, index) {
 
     const textDiv = document.createElement('div');
     textDiv.className = 'history-entry-text';
-    textDiv.textContent = text;
+
+    // Highlight matching text if searching
+    if (searchQuery) {
+        highlightText(textDiv, text, searchQuery);
+    } else {
+        textDiv.textContent = text;
+    }
 
     contentDiv.appendChild(textDiv);
 
@@ -1463,14 +1469,81 @@ function createHistoryEntryElement(text, index) {
     return entry;
 }
 
-function updateHistoryUI() {
-    // Update quick-access bar count
-    if (historyElements.count) {
-        historyElements.count.textContent = historyEntries.length;
+/**
+ * Highlight search matches in text using <mark> elements.
+ * Uses safe DOM methods (no innerHTML) to prevent XSS.
+ */
+function highlightText(container, text, query) {
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    let lastIndex = 0;
+    let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+
+    if (matchIndex === -1) {
+        container.textContent = text;
+        return;
     }
 
+    while (matchIndex !== -1) {
+        // Text before the match
+        if (matchIndex > lastIndex) {
+            container.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
+        }
+
+        // The match itself
+        const mark = document.createElement('mark');
+        mark.textContent = text.slice(matchIndex, matchIndex + lowerQuery.length);
+        container.appendChild(mark);
+
+        lastIndex = matchIndex + lowerQuery.length;
+        matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+    }
+
+    // Remaining text after last match
+    if (lastIndex < text.length) {
+        container.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+}
+
+function getHistorySearchQuery() {
+    return historyElements.searchInput?.value.trim() || '';
+}
+
+function clearHistorySearch() {
+    if (historyElements.searchInput) {
+        historyElements.searchInput.value = '';
+    }
+    updateSearchClearButton();
+    updateHistoryUI();
+}
+
+function updateSearchClearButton() {
+    historyElements.searchClear?.classList.toggle('visible', !!historyElements.searchInput?.value);
+}
+
+function updateHistoryUI() {
+    // Update history count badge
     if (historyElements.panelCount) {
         historyElements.panelCount.textContent = historyEntries.length;
+    }
+
+    const searchQuery = getHistorySearchQuery();
+
+    // Filter entries based on search query
+    const filtered = [];
+    historyEntries.forEach((text, index) => {
+        if (!searchQuery || text.toLowerCase().includes(searchQuery.toLowerCase())) {
+            filtered.push({ text, index });
+        }
+    });
+
+    // Update search result count
+    if (historyElements.searchCount) {
+        if (searchQuery) {
+            historyElements.searchCount.textContent = `${filtered.length}/${historyEntries.length}`;
+        } else {
+            historyElements.searchCount.textContent = '';
+        }
     }
 
     // Update panel list using safe DOM methods
@@ -1482,41 +1555,52 @@ function updateHistoryUI() {
             emptyDiv.className = 'panel-items-empty';
             emptyDiv.textContent = 'No dictation history yet. Transcriptions will appear here.';
             historyElements.list.appendChild(emptyDiv);
+        } else if (filtered.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'panel-items-empty';
+            emptyDiv.textContent = `No results for "${searchQuery}"`;
+            historyElements.list.appendChild(emptyDiv);
         } else {
-            historyEntries.forEach((text, index) => {
-                historyElements.list.appendChild(createHistoryEntryElement(text, index));
+            filtered.forEach(({ text, index }) => {
+                historyElements.list.appendChild(createHistoryEntryElement(text, index, searchQuery));
             });
         }
     }
 }
 
-function openHistoryPanel() {
-    historyElements.overlay?.classList.add('active');
-    fetchHistory(); // Refresh on open
-}
-
-function closeHistoryPanel() {
-    historyElements.overlay?.classList.remove('active');
+function focusHistorySearch() {
+    historyElements.searchInput?.focus();
+    historyElements.searchInput?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function initHistoryPanel() {
-    // Toggle panel on quick-access click
-    historyElements.toggle?.addEventListener('click', () => {
-        openHistoryPanel();
-    });
-
-    // Close panel
-    historyElements.closeBtn?.addEventListener('click', closeHistoryPanel);
-
-    // Close on overlay click (but not panel click)
-    historyElements.overlay?.addEventListener('click', (e) => {
-        if (e.target === historyElements.overlay) {
-            closeHistoryPanel();
-        }
-    });
-
     // Clear all history
     historyElements.clearBtn?.addEventListener('click', clearAllHistory);
+
+    // Live search filtering
+    historyElements.searchInput?.addEventListener('input', () => {
+        updateHistoryUI();
+        updateSearchClearButton();
+    });
+
+    // Clear button click
+    historyElements.searchClear?.addEventListener('click', () => {
+        clearHistorySearch();
+        historyElements.searchInput?.focus();
+    });
+
+    // Escape in search input clears the search text, then blurs
+    historyElements.searchInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (historyElements.searchInput.value) {
+                e.stopPropagation();
+                clearHistorySearch();
+            } else {
+                // Blur the search input so "/" can re-focus it
+                historyElements.searchInput.blur();
+            }
+        }
+    });
 
     // Handle clicks on history entries - click anywhere to copy, delete button to delete
     historyElements.list?.addEventListener('click', (e) => {
@@ -1783,17 +1867,62 @@ function initReplacementsPanel() {
     fetchReplacements();
 }
 
-// Global Escape key handler for all panels
+// Global keyboard shortcuts for panels and settings
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (vocabElements.overlay?.classList.contains('active')) {
             closeVocabPanel();
         }
-        if (historyElements.overlay?.classList.contains('active')) {
-            closeHistoryPanel();
-        }
         if (replacementsElements.overlay?.classList.contains('active')) {
             closeReplacementsPanel();
+        }
+    }
+
+    // Skip all single-key shortcuts when typing in an input
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+
+    // "/" or "h" to focus inline history search (not when a modal panel is open)
+    if ((e.key === '/' || e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const anyModalOpen = vocabElements.overlay?.classList.contains('active')
+            || replacementsElements.overlay?.classList.contains('active');
+        // "/" works from any non-input context; "h" only when nothing specific is focused
+        const isSlash = e.key === '/';
+        const nothingFocused = !activeEl || activeEl === document.body;
+        if (!isInput && !anyModalOpen && (isSlash || nothingFocused)) {
+            e.preventDefault();
+            focusHistorySearch();
+            return;
+        }
+    }
+
+    // All remaining shortcuts require no input focus and no modifier keys
+    if (isInput || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // Panel shortcuts: V=Vocabulary, R=Replacements
+    const anyPanelOpen = vocabElements.overlay?.classList.contains('active')
+        || replacementsElements.overlay?.classList.contains('active');
+
+    if (!anyPanelOpen) {
+        switch (e.key.toLowerCase()) {
+            case 'v':
+                e.preventDefault();
+                openVocabPanel();
+                return;
+            case 'r':
+                e.preventDefault();
+                openReplacementsPanel();
+                return;
+        }
+    }
+
+    // Language shortcuts: A=Auto, E=English, F=French, C=Chinese, J=Japanese
+    if (!anyPanelOpen && !state.isRecording && !state.isProcessing) {
+        const langMap = { a: '', e: 'en', f: 'fr', c: 'zh', j: 'ja' };
+        const lang = langMap[e.key.toLowerCase()];
+        if (lang !== undefined) {
+            e.preventDefault();
+            setLanguage(lang);
         }
     }
 });

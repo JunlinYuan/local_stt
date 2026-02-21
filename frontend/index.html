@@ -28,24 +28,21 @@
             </div>
         </header>
 
-        <!-- Quick Access Bar (Vocabulary + History) -->
+        <!-- Quick Access Bar (Vocabulary + Replacements) -->
         <nav class="quick-access-bar">
             <div class="quick-access-left">
-                <div class="vocab-display" id="vocabToggle" title="Click to manage vocabulary">
+                <div class="vocab-display" id="vocabToggle" title="Click to manage vocabulary (V)">
                     <span class="vocab-icon">◈</span>
                     <span class="vocab-label">VOCAB</span>
                     <span class="vocab-terms" id="vocabTerms">—</span>
                     <span class="vocab-count" id="vocabCount">0</span>
+                    <kbd class="shortcut-hint">V</kbd>
                 </div>
-                <div class="history-toggle" id="historyToggle" title="Click to view history">
-                    <span class="history-icon">◷</span>
-                    <span class="history-label">HISTORY</span>
-                    <span class="history-count" id="historyCount">0</span>
-                </div>
-                <div class="replacements-toggle" id="replacementsToggle" title="Click to manage word replacements">
+                <div class="replacements-toggle" id="replacementsToggle" title="Click to manage word replacements (R)">
                     <span class="replacements-icon">⇄</span>
                     <span class="replacements-label">REPLACE</span>
                     <span class="replacements-count" id="replacementsCount">0</span>
+                    <kbd class="shortcut-hint">R</kbd>
                 </div>
             </div>
             <div class="quick-access-right">
@@ -66,22 +63,27 @@
                 <button class="lang-btn active" data-lang="" data-name="Auto-Detect">
                     <span class="lang-indicator"></span>
                     <span class="lang-code">AUTO</span>
+                    <kbd class="shortcut-hint lang-hint">A</kbd>
                 </button>
                 <button class="lang-btn" data-lang="en" data-name="English">
                     <span class="lang-indicator"></span>
                     <span class="lang-code">EN</span>
+                    <kbd class="shortcut-hint lang-hint">E</kbd>
                 </button>
                 <button class="lang-btn" data-lang="fr" data-name="French">
                     <span class="lang-indicator"></span>
                     <span class="lang-code">FR</span>
+                    <kbd class="shortcut-hint lang-hint">F</kbd>
                 </button>
                 <button class="lang-btn" data-lang="zh" data-name="Chinese">
                     <span class="lang-indicator"></span>
                     <span class="lang-code">中文</span>
+                    <kbd class="shortcut-hint lang-hint">C</kbd>
                 </button>
                 <button class="lang-btn" data-lang="ja" data-name="Japanese">
                     <span class="lang-indicator"></span>
                     <span class="lang-code">日本語</span>
+                    <kbd class="shortcut-hint lang-hint">J</kbd>
                 </button>
             </div>
             <div class="language-status" id="languageStatus">Auto-detect enabled</div>
@@ -208,6 +210,42 @@
             </div>
         </main>
 
+        <!-- Inline History Section -->
+        <section class="history-section" id="historySection">
+            <div class="history-section-header">
+                <div class="history-section-title">
+                    <span class="history-section-icon">◷</span>
+                    <span>DICTATION HISTORY</span>
+                    <span class="panel-count" id="historyPanelCount">0</span>
+                </div>
+                <div class="history-section-actions">
+                    <button class="panel-action-btn" id="historyClearBtn" title="Clear all history">
+                        <span>Clear All</span>
+                    </button>
+                </div>
+            </div>
+            <div class="history-search-row">
+                <span class="history-search-icon">/</span>
+                <input type="text"
+                       id="historySearchInput"
+                       class="history-search-input"
+                       placeholder="Search history..."
+                       autocomplete="off"
+                       spellcheck="false">
+                <span class="history-search-count" id="historySearchCount"></span>
+                <button class="history-search-clear" id="historySearchClear" title="Clear search (Esc)">✕</button>
+            </div>
+            <div class="history-section-body">
+                <div class="panel-items-list history-list" id="historyList">
+                    <!-- History entries populated dynamically -->
+                </div>
+            </div>
+            <div class="history-section-footer">
+                <span class="history-hint">Click any entry to copy to clipboard</span>
+                <span class="history-hint-sep">·</span>
+                <span class="history-hint">Press <kbd>/</kbd> to search</span>
+            </div>
+        </section>
 
         <!-- Full-Page Vocabulary Panel -->
         <div class="fullpage-overlay" id="vocabOverlay">
@@ -295,35 +333,6 @@
                         <span class="file-path">replacements.json</span>
                     </span>
                     <span class="replacement-hint">Case-insensitive, whole words only</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Full-Page History Panel -->
-        <div class="fullpage-overlay" id="historyOverlay">
-            <div class="fullpage-panel" id="historyPanel">
-                <div class="fullpage-panel-header">
-                    <div class="fullpage-panel-title">
-                        <span class="panel-icon">◷</span>
-                        <span>DICTATION HISTORY</span>
-                        <span class="panel-count" id="historyPanelCount">0</span>
-                    </div>
-                    <div class="panel-header-actions">
-                        <button class="panel-action-btn" id="historyClearBtn" title="Clear all history">
-                            <span>Clear All</span>
-                        </button>
-                        <button class="fullpage-panel-close" id="historyPanelClose" title="Close (Esc)">
-                            <span>✕</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="fullpage-panel-body">
-                    <div class="panel-items-list history-list" id="historyList">
-                        <!-- History entries populated dynamically -->
-                    </div>
-                </div>
-                <div class="fullpage-panel-footer">
-                    <span class="history-hint">Click any entry to copy to clipboard</span>
                 </div>
             </div>
         </div>

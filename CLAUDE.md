@@ -6,13 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Speech-to-text application with push-to-talk interface. Supports local processing (lightning-whisper-mlx on Apple Silicon) and cloud APIs (OpenAI, Groq). Features global hotkey recording, auto-paste to window under mouse cursor.
+Speech-to-text application with push-to-talk interface. Supports local processing (lightning-whisper-mlx on Apple Silicon, macOS only) and cloud APIs (OpenAI, Groq). Features global hotkey recording, auto-paste to window under mouse cursor. Cross-platform: macOS and Windows 10+.
 
 ## Commands
 
 ```bash
-# Start (server + global hotkey client)
+# Start - macOS (server + global hotkey client)
 ./start.sh
+
+# Start - Windows (double-click start.bat or in PowerShell)
+.\start.ps1
 
 # Lint
 cd backend && uv run ruff check .
@@ -39,7 +42,7 @@ Global Hotkey Client ─────────HTTP POST───────�
 ```
 
 **Key Flow:**
-1. User holds hotkey (Ctrl, Ctrl+Cmd, or Shift+Cmd) → records audio
+1. User holds hotkey (Ctrl, Ctrl+Cmd/Alt, or Shift+Cmd/Alt) → records audio
 2. On release, audio converted to WAV and sent to backend
 3. Backend routes to configured STT provider (local/OpenAI/Groq)
 4. Result JSON returned with text, language, duration, processing_time
@@ -57,6 +60,7 @@ Global Hotkey Client ─────────HTTP POST───────�
 | `backend/vocabulary.py` | Vocabulary manager with file watcher |
 | `backend/vocabulary.txt` | Custom vocabulary words (auto-reloads) |
 | `backend/hotkey_client.py` | Global hotkey daemon, audio recording, clipboard |
+| `backend/platform_utils.py` | Cross-platform abstraction (clipboard, paste, mouse, memory) |
 | `frontend/app.js` | Key detection, audio recording, WebSocket client |
 | `docs/prd.md` | Full requirements and technical decisions |
 | `docs/learnings.md` | Model comparison research, optimization notes |
@@ -69,9 +73,9 @@ Settings stored in `backend/settings.json`, managed via web UI or API.
 **To add a new setting:** Add entry to `SETTINGS_SCHEMA` in `settings.py` with `default`, `type`, and optional `options`/`min`/`max`. API and UI handle it automatically.
 
 **Current settings:** (see `SETTINGS_SCHEMA` in `settings.py` for full list)
-- `stt_provider`: `"local"`, `"openai"`, or `"groq"` (fastest)
+- `stt_provider`: `"local"` (macOS only), `"openai"`, or `"groq"` (fastest)
 - `language`: `""` (auto-detect), `"en"`, `"fr"`, `"zh"`, `"ja"`
-- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Cmd), or `"shift"` (+Cmd)
+- `keybinding`: `"ctrl_only"`, `"ctrl"` (+Cmd/Alt), or `"shift"` (+Cmd/Alt)
 - `ffm_enabled`: Mouse tracking for targeted paste (default: true)
 - `max_recording_duration`: Safety timeout in seconds (default: 240)
 - `min_recording_duration`: Skip accidental taps (default: 0.3s)
@@ -88,8 +92,16 @@ Settings stored in `backend/settings.json`, managed via web UI or API.
 - `OPENAI_API_KEY`: Required for OpenAI provider (from .env or shell)
 - `GROQ_API_KEY`: Required for Groq provider (get from https://console.groq.com)
 
+## Platform Notes
+
+- **All platform-specific code** lives in `backend/platform_utils.py`. Do not add macOS/Windows-specific imports elsewhere.
+- **macOS**: Uses Quartz, objc, pbcopy/pbpaste, AppleScript for paste/focus. Command key as secondary modifier.
+- **Windows**: Uses ctypes/win32, pyperclip, pyautogui. Alt key as secondary modifier. No local MLX provider.
+- **Settings defaults** are platform-aware (e.g., default provider is 'groq' on Windows, 'local' on macOS).
+- **pynput Key.cmd_l** does not exist on Windows — the code uses `_SECONDARY_MOD_KEY` which is `cmd_l` on macOS, `alt_l` on Windows.
+
 ## Usage
 
-Run `./start.sh` to start both server and global hotkey client. Opens web UI automatically.
+**macOS**: Run `./start.sh` to start both server and global hotkey client. Opens web UI automatically. Global hotkey requires Accessibility permissions for your terminal app.
 
-Note: Global hotkey requires macOS Accessibility permissions for your terminal app.
+**Windows**: Double-click `start.bat` or run `.\start.ps1` in PowerShell. Requires a Groq or OpenAI API key in `.env`.

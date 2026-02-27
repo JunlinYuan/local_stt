@@ -5,19 +5,15 @@ To add a new setting:
 1. Add entry to SETTINGS_SCHEMA with default, type, and optional validation/display
 2. That's it - API and UI will handle it automatically
 
-Example future setting:
-    "paste_delay": {
-        "default": 0.1,
-        "type": "number",
-        "min": 0,
-        "max": 2.0,
-        "description": "Delay in seconds before pasting and restoring clipboard",
-    },
+Platform-aware: defaults and display strings adjust for macOS vs Windows.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+_IS_MACOS = sys.platform == "darwin"
 
 # Settings file location (in backend directory)
 SETTINGS_FILE = Path(__file__).parent / "settings.json"
@@ -28,10 +24,14 @@ SETTINGS_FILE = Path(__file__).parent / "settings.json"
 
 SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
     "stt_provider": {
-        "default": "local",
+        "default": "local" if _IS_MACOS else "groq",
         "type": "string",
-        "options": ["local", "openai", "groq"],
-        "description": "STT provider: local (lightning-whisper-mlx), OpenAI API, or Groq API",
+        "options": ["local", "openai", "groq"] if _IS_MACOS else ["openai", "groq"],
+        "description": (
+            "STT provider: local (lightning-whisper-mlx), OpenAI API, or Groq API"
+            if _IS_MACOS
+            else "STT provider: OpenAI API or Groq API (local MLX requires macOS)"
+        ),
         "display": lambda v: {
             "local": "Local (MLX)",
             "openai": "OpenAI API",
@@ -50,11 +50,19 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "type": "string",
         "options": ["ctrl_only", "ctrl", "shift"],
         "description": "Push-to-talk keybinding (left side only)",
-        "display": lambda v: {
-            "ctrl_only": "Left Ctrl Only",
-            "ctrl": "Left Ctrl + Left Option",
-            "shift": "Left Shift + Left Option",
-        }.get(v, v),
+        "display": lambda v: (
+            {
+                "ctrl_only": "Left Ctrl Only",
+                "ctrl": "Left Ctrl + Left Option",
+                "shift": "Left Shift + Left Option",
+            }
+            if _IS_MACOS
+            else {
+                "ctrl_only": "Left Ctrl Only",
+                "ctrl": "Left Ctrl + Left Alt",
+                "shift": "Left Shift + Left Alt",
+            }
+        ).get(v, v),
     },
     "clipboard_sync_delay": {
         "default": 0.05,

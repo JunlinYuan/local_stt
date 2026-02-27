@@ -110,19 +110,13 @@ class TestResampleTo16k:
         min_len = min(len(proper), len(naive), len(ref)) - trim
         proper_err = np.sqrt(
             np.mean(
-                (
-                    proper[trim:min_len].astype(float)
-                    - ref[trim:min_len].astype(float)
-                )
+                (proper[trim:min_len].astype(float) - ref[trim:min_len].astype(float))
                 ** 2
             )
         )
         naive_err = np.sqrt(
             np.mean(
-                (
-                    naive[trim:min_len].astype(float)
-                    - ref[trim:min_len].astype(float)
-                )
+                (naive[trim:min_len].astype(float) - ref[trim:min_len].astype(float))
                 ** 2
             )
         )

@@ -1,6 +1,11 @@
-"""Speech-to-text engine using lightning-whisper-mlx for Apple Silicon."""
+"""Speech-to-text engine using lightning-whisper-mlx for Apple Silicon.
+
+Note: The local MLX provider only works on macOS with Apple Silicon.
+On Windows/Linux, use cloud providers (Groq or OpenAI) instead.
+"""
 
 import gc
+import sys
 import tempfile
 import time
 from datetime import datetime
@@ -9,6 +14,7 @@ from typing import Optional, TYPE_CHECKING
 
 # Lazy imports for MLX - only loaded when local transcription is used
 # This saves ~2GB memory when using cloud providers (Groq/OpenAI)
+# MLX is only available on macOS with Apple Silicon
 if TYPE_CHECKING:
     from lightning_whisper_mlx import LightningWhisperMLX
 
@@ -17,6 +23,8 @@ import vocabulary
 from content_filter import get_filter
 from settings import get_setting, get_stt_provider
 from vocabulary_utils import apply_vocabulary_casing
+
+_IS_MACOS = sys.platform == "darwin"
 
 
 class STTEngine:
@@ -45,7 +53,15 @@ class STTEngine:
         self.vocabulary: list[str] = []
 
     def load_model(self) -> None:
-        """Load the Whisper model and warm up inference."""
+        """Load the Whisper model and warm up inference.
+
+        Raises RuntimeError on non-macOS platforms (MLX requires Apple Silicon).
+        """
+        if not _IS_MACOS:
+            raise RuntimeError(
+                "Local MLX provider requires macOS with Apple Silicon. "
+                "Please use 'groq' or 'openai' provider instead."
+            )
         # Lazy import MLX libraries - only loaded when local transcription is used
         from lightning_whisper_mlx import LightningWhisperMLX
 
@@ -128,6 +144,11 @@ class STTEngine:
         Returns:
             Dict with 'text', 'language', 'duration', 'processing_time'
         """
+        if not _IS_MACOS:
+            raise RuntimeError(
+                "Local MLX provider requires macOS with Apple Silicon. "
+                "Please use 'groq' or 'openai' provider instead."
+            )
         # Lazy import MLX transcribe function
         from lightning_whisper_mlx.transcribe import transcribe_audio
 
@@ -225,9 +246,13 @@ class STTEngine:
 
             # Release MLX/Metal memory to prevent accumulation over long sessions
             # Without this, memory grows ~10-15GB over a day of use
-            import mlx.core as mx
+            if _IS_MACOS:
+                try:
+                    import mlx.core as mx
 
-            mx.clear_memory_cache()
+                    mx.clear_memory_cache()
+                except ImportError:
+                    pass
             gc.collect()
 
 
@@ -436,6 +461,20 @@ def transcribe_audio_with_provider(
             result["audio_info"] = audio_info
 
     if result is None:
+        if not _IS_MACOS:
+            # Local MLX is not available on Windows/Linux
+            print("  [Router] ERROR: Local MLX provider not available on this platform")
+            return {
+                "text": "",
+                "language": language or "unknown",
+                "language_probability": 0.0,
+                "duration": audio_duration,
+                "processing_time": time.time() - start_time,
+                "provider": "local",
+                "error": "Local MLX provider requires macOS with Apple Silicon. "
+                "Please switch to 'groq' or 'openai' in Settings.",
+                "audio_info": audio_info,
+            }
         # Default: local MLX model
         print("  [Router] Using local lightning-whisper-mlx")
         engine = get_engine()

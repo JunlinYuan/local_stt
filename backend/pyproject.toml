@@ -1,12 +1,11 @@
 [project]
 name = "local-stt"
-version = "0.1.0"
-description = "Local speech-to-text with lightning-whisper-mlx for Apple Silicon"
+version = "0.2.0"
+description = "Speech-to-text with push-to-talk interface (macOS local MLX + cross-platform cloud APIs)"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "lightning-whisper-mlx>=0.0.10",
     "python-multipart>=0.0.6",
     "websockets>=12.0",
     "better-profanity>=0.7.0",
@@ -18,13 +17,28 @@ dependencies = [
 dev = [
     "ruff>=0.1.0",
 ]
-# Global hotkey client dependencies
+# macOS-only: local MLX Whisper model (Apple Silicon)
+mlx = [
+    "lightning-whisper-mlx>=0.0.10",
+]
+# Global hotkey client dependencies (cross-platform)
 client = [
     "pynput>=1.7.6",
     "sounddevice>=0.4.6",
     "numpy>=1.24.0",
     "httpx>=0.25.0",
     "scipy>=1.10.0",
+]
+# Windows-specific client dependencies
+client-windows = [
+    "pynput>=1.7.6",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "httpx>=0.25.0",
+    "scipy>=1.10.0",
+    "pyperclip>=1.8.0",
+    "pyautogui>=0.9.54",
+    "psutil>=5.9.0",
 ]
 
 [tool.uv]

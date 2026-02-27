@@ -124,9 +124,7 @@ class ReplacementManager:
         except OSError as e:
             print(f"[Replacements] Error saving file: {e}")
 
-    def add_replacement(
-        self, from_text: str, to_text: str
-    ) -> tuple[bool, str | None]:
+    def add_replacement(self, from_text: str, to_text: str) -> tuple[bool, str | None]:
         """
         Add a replacement rule.
 

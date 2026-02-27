@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,6 +24,7 @@ import history
 import replacements
 import settings
 import vocabulary
+from platform_utils import get_memory_mb, IS_MACOS
 from stt_engine import get_engine, transcribe_audio_with_provider
 from openai_stt import get_openai_stt, is_openai_available
 from groq_stt import get_groq_stt, is_groq_available
@@ -42,22 +42,8 @@ logging.getLogger("uvicorn.access").addFilter(PollingFilter())
 
 
 # =============================================================================
-# Memory monitoring for debugging
+# Memory monitoring for debugging (cross-platform via platform_utils)
 # =============================================================================
-def get_memory_mb() -> float:
-    """Get current process memory usage in MB (macOS/Linux)."""
-    try:
-        import resource
-        # Get max resident set size in bytes (macOS) or KB (Linux)
-        rusage = resource.getrusage(resource.RUSAGE_SELF)
-        # macOS returns bytes, Linux returns KB
-        mem_bytes = rusage.ru_maxrss
-        if os.uname().sysname == "Darwin":
-            return mem_bytes / (1024 * 1024)  # bytes to MB
-        else:
-            return mem_bytes / 1024  # KB to MB
-    except Exception:
-        return 0.0
 
 
 _last_memory_mb = 0.0
@@ -198,7 +184,7 @@ async def health_check():
     return {
         "status": "ok",
         "providers": {
-            "local": True,  # Always available (lazy loads on first use)
+            "local": IS_MACOS,  # MLX only available on macOS with Apple Silicon
             "openai": is_openai_available(),
             "groq": is_groq_available(),
         },

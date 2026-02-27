@@ -11,8 +11,6 @@ Usage:
 
 import gc
 import io
-import os
-import resource
 import subprocess
 import sys
 import threading
@@ -26,27 +24,24 @@ import numpy as np
 import sounddevice as sd
 from pynput import keyboard
 
-# macOS APIs for focus-follows-mouse (imported at module level for speed)
-import objc
-from Quartz import (
-    CGWindowListCopyWindowInfo,
-    kCGWindowListOptionOnScreenOnly,
-    kCGNullWindowID,
-    CGEventGetLocation,
-    CGEventCreate,
+from platform_utils import (
+    IS_MACOS,
+    get_memory_mb,
+    get_clipboard,
+    set_clipboard,
+    simulate_paste,
+    get_mouse_position,
+    get_app_at_position,
+    focus_app,
+    get_keybinding_display as platform_keybinding_display,
+    get_paste_shortcut_display,
 )
 
 
 # =============================================================================
 # Memory monitoring for debugging
 # =============================================================================
-def get_memory_mb() -> float:
-    """Get current process memory in MB."""
-    rusage = resource.getrusage(resource.RUSAGE_SELF)
-    if os.uname().sysname == "Darwin":
-        return rusage.ru_maxrss / (1024 * 1024)
-    return rusage.ru_maxrss / 1024
-
+# get_memory_mb is imported from platform_utils (cross-platform)
 
 _last_mem = 0.0
 
@@ -149,10 +144,36 @@ CHANNELS = 1
 IGNORED_MODIFIER_KEYS = {
     keyboard.Key.ctrl_r,
     keyboard.Key.shift_r,
-    keyboard.Key.alt_l,
-    keyboard.Key.alt_r,
-    keyboard.Key.cmd_r,
 }
+
+if IS_MACOS:
+    # On macOS: Alt keys are not triggers, Cmd_r is not a trigger
+    IGNORED_MODIFIER_KEYS.update(
+        {
+            keyboard.Key.alt_l,
+            keyboard.Key.alt_r,
+        }
+    )
+    # cmd_l/cmd_r only exist reliably on macOS pynput
+    try:
+        IGNORED_MODIFIER_KEYS.add(keyboard.Key.cmd_r)
+    except AttributeError:
+        pass
+else:
+    # On Windows/Linux: In ctrl_only mode, Alt keys should be ignored.
+    # In ctrl/shift modes, alt_r should be ignored (alt_l is a trigger).
+    IGNORED_MODIFIER_KEYS.add(keyboard.Key.alt_r)
+
+# The secondary modifier key: cmd_l on macOS, alt_l on Windows/Linux.
+# Used as the "second key" in two-key combos (ctrl + cmd, shift + cmd).
+_SECONDARY_MOD_KEY: Optional[keyboard.Key] = None
+if IS_MACOS:
+    try:
+        _SECONDARY_MOD_KEY = keyboard.Key.cmd_l
+    except AttributeError:
+        _SECONDARY_MOD_KEY = None
+else:
+    _SECONDARY_MOD_KEY = keyboard.Key.alt_l
 
 
 class HotkeyClient:
@@ -216,41 +237,12 @@ class HotkeyClient:
         self._health_check_interval = 20.0  # Check every 20 seconds
 
     def _get_mouse_position(self) -> tuple:
-        """Get current mouse position (cheap Quartz call)."""
-        event = CGEventCreate(None)
-        mouse = CGEventGetLocation(event)
-        return mouse.x, mouse.y
+        """Get current mouse position (delegates to platform_utils)."""
+        return get_mouse_position()
 
     def _get_app_at_position(self, mouse_x: float, mouse_y: float) -> Optional[str]:
-        """Find which app owns the window at the given position.
-
-        Uses objc.autorelease_pool() to properly release CoreFoundation
-        objects and prevent memory leak (~30MB/30s without cleanup).
-        """
-        with objc.autorelease_pool():
-            try:
-                windows = CGWindowListCopyWindowInfo(
-                    kCGWindowListOptionOnScreenOnly, kCGNullWindowID
-                )
-
-                for win in windows:
-                    bounds = win.get("kCGWindowBounds", {})
-                    x = bounds.get("X", 0)
-                    y = bounds.get("Y", 0)
-                    w = bounds.get("Width", 0)
-                    h = bounds.get("Height", 0)
-                    owner = win.get("kCGWindowOwnerName", "")
-                    layer = win.get("kCGWindowLayer", 0)
-
-                    if layer != 0:
-                        continue
-
-                    if x <= mouse_x <= x + w and y <= mouse_y <= y + h:
-                        return owner
-
-                return None
-            except Exception:
-                return None
+        """Find which app owns the window at the given position."""
+        return get_app_at_position(mouse_x, mouse_y)
 
     def _get_app_under_mouse_fast(self) -> Optional[str]:
         """Get app under mouse cursor (convenience wrapper)."""
@@ -258,19 +250,8 @@ class HotkeyClient:
         return self._get_app_at_position(mx, my)
 
     def _focus_app_fast(self, app_name: str) -> bool:
-        """Focus app using AppleScript (blocking)."""
-        try:
-            safe_name = app_name.replace("\\", "\\\\").replace('"', '\\"')
-            subprocess.run(
-                ["osascript", "-e", f'tell application "{safe_name}" to activate'],
-                capture_output=True,
-                timeout=0.3,  # Short timeout to keep FFM responsive
-            )
-            return True
-        except subprocess.TimeoutExpired:
-            return False
-        except Exception:
-            return False
+        """Focus app (delegates to platform_utils)."""
+        return focus_app(app_name)
 
     def get_http_client(self) -> httpx.Client:
         """Get or create persistent HTTP client for server communication."""
@@ -395,12 +376,8 @@ class HotkeyClient:
             pass  # Non-critical
 
     def get_keybinding_display(self) -> str:
-        """Get human-readable keybinding."""
-        return {
-            "ctrl_only": "Left Ctrl",
-            "ctrl": "Left Ctrl + Left Command",
-            "shift": "Left Shift + Left Command",
-        }.get(self.keybinding, self.keybinding)
+        """Get human-readable keybinding (platform-aware)."""
+        return platform_keybinding_display(self.keybinding)
 
     def is_left_modifier_key(self, key) -> bool:
         """Check if key is the configured LEFT-side modifier."""
@@ -421,7 +398,7 @@ class HotkeyClient:
         if self.keybinding == "ctrl_only":
             return key == keyboard.Key.ctrl_l
         else:  # ctrl or shift mode
-            return self.is_left_modifier_key(key) or key == keyboard.Key.cmd_l
+            return self.is_left_modifier_key(key) or key == _SECONDARY_MOD_KEY
 
     def _focus_follows_mouse_loop(self):
         """Background loop that tracks/focuses window under mouse.
@@ -462,7 +439,7 @@ class HotkeyClient:
             try:
                 now = time.time()
 
-                # In raise_on_hover mode, skip when left Command is held (pause FFM)
+                # In raise_on_hover mode, skip when secondary mod is held (pause FFM)
                 if self._ffm_mode == "raise_on_hover" and self.left_cmd_pressed:
                     self._ffm_dwell_app = None
                     time.sleep(poll)
@@ -492,7 +469,13 @@ class HotkeyClient:
 
                 app = self._get_app_at_position(mouse_x, mouse_y)
 
-                if app and app not in ("Dock", "Control Center", "Notification Center"):
+                # Exclude system UI elements from focus tracking
+                _excluded_apps = (
+                    ("Dock", "Control Center", "Notification Center")
+                    if IS_MACOS
+                    else ("Task View", "ShellExperienceHost.exe", "SearchHost.exe")
+                )
+                if app and app not in _excluded_apps:
                     if app != self._ffm_dwell_app:
                         self._ffm_dwell_app = app
                         self._ffm_dwell_start = now
@@ -533,67 +516,20 @@ class HotkeyClient:
         print("🖱️  Mouse tracking stopped")
 
     def get_clipboard(self) -> Optional[str]:
-        """Get current clipboard content (macOS)."""
-        try:
-            result = subprocess.run(
-                ["pbpaste"],
-                capture_output=True,
-                check=True,
-            )
-            return result.stdout.decode("utf-8")
-        except subprocess.CalledProcessError:
-            return None
+        """Get current clipboard content (cross-platform)."""
+        return get_clipboard()
 
     def set_clipboard(self, text: str) -> bool:
-        """Set clipboard content (macOS)."""
-        try:
-            subprocess.run(
-                ["pbcopy"],
-                input=text.encode("utf-8"),
-                check=True,
-            )
-            return True
-        except subprocess.CalledProcessError:
-            return False
+        """Set clipboard content (cross-platform)."""
+        return set_clipboard(text)
 
     def simulate_paste(self, target_app: Optional[str] = None) -> bool:
-        """Simulate Cmd+V paste using AppleScript (macOS).
+        """Simulate paste keystroke (cross-platform).
 
-        Args:
-            target_app: If provided, send paste to this specific app/process
-                       without activating it. If None, pastes to frontmost app.
+        On macOS: Cmd+V via AppleScript (can target specific app).
+        On Windows: Ctrl+V via pyautogui or ctypes.
         """
-        try:
-            if target_app:
-                # Send keystroke to specific process (doesn't activate/raise)
-                safe_name = target_app.replace("\\", "\\\\").replace('"', '\\"')
-                script = f'''
-                    tell application "System Events"
-                        tell process "{safe_name}"
-                            keystroke "v" using command down
-                        end tell
-                    end tell
-                '''
-            else:
-                # Fallback: paste to frontmost app
-                script = 'tell application "System Events" to keystroke "v" using command down'
-
-            subprocess.run(
-                ["osascript", "-e", script],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            return True
-        except subprocess.CalledProcessError as e:
-            # Common cause: Terminal needs Accessibility permissions
-            print(
-                f"⚠️  Paste failed: {e.stderr.strip() if e.stderr else 'Unknown error'}"
-            )
-            print(
-                "   → Grant Accessibility access: System Settings → Privacy & Security → Accessibility"
-            )
-            return False
+        return simulate_paste(target_app)
 
     def auto_paste_and_restore(self, text: str) -> bool:
         """
@@ -628,7 +564,9 @@ class HotkeyClient:
 
         # Paste to now-active app (we activated target_app above if needed)
         if not self.simulate_paste():
-            print("📋 Text copied to clipboard (paste manually with Cmd+V)")
+            print(
+                f"📋 Text copied to clipboard (paste manually with {get_paste_shortcut_display()})"
+            )
             return False
 
         if target_app:
@@ -719,9 +657,14 @@ class HotkeyClient:
             if stream is None:
                 self.indicator.hide()  # Hide if audio setup failed
                 print(f"⚠️  Audio device error: {last_error}")
-                print(
-                    "   → Try: Close other apps using microphone, or check System Settings → Sound → Input"
-                )
+                if IS_MACOS:
+                    print(
+                        "   -> Try: Close other apps using microphone, or check System Settings -> Sound -> Input"
+                    )
+                else:
+                    print(
+                        "   -> Try: Close other apps using microphone, or check Settings -> Sound -> Input"
+                    )
                 return
 
             # Only set recording state after stream is successfully opened
@@ -958,7 +901,7 @@ class HotkeyClient:
             # Track modifier key states (only LEFT-side trigger keys)
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = True
-            elif key == keyboard.Key.cmd_l:
+            elif _SECONDARY_MOD_KEY and key == _SECONDARY_MOD_KEY:
                 self.left_cmd_pressed = True
             elif key in IGNORED_MODIFIER_KEYS:
                 return  # Explicitly ignore non-trigger modifiers
@@ -991,7 +934,7 @@ class HotkeyClient:
 
             if self.is_left_modifier_key(key):
                 self.left_modifier_pressed = False
-            elif key == keyboard.Key.cmd_l:
+            elif _SECONDARY_MOD_KEY and key == _SECONDARY_MOD_KEY:
                 self.left_cmd_pressed = False
             elif key in IGNORED_MODIFIER_KEYS:
                 return  # Explicitly ignore non-trigger modifiers

@@ -128,8 +128,8 @@ class RecordingIndicator:
             self._process = None
 
     def is_available(self) -> bool:
-        """Check if indicator script exists."""
-        return self._script_path.exists()
+        """Check if indicator is available (macOS only, uses systemTransparent)."""
+        return IS_MACOS and self._script_path.exists()
 
 
 # Configuration
@@ -179,8 +179,8 @@ else:
 class HotkeyClient:
     """Global hotkey listener for speech-to-text.
 
-    Uses LEFT-side modifier keys only to avoid conflict with proactive_companion
-    which uses right-side keys.
+    Uses LEFT-side modifier keys only. Right-side modifiers are reserved
+    for other applications and are silently ignored.
     """
 
     def __init__(self):
@@ -305,7 +305,7 @@ class HotkeyClient:
                 print(f"⚙️  FFM mode changed to: {new_ffm_mode}")
             self._ffm_mode = new_ffm_mode
 
-            if ffm_changed:
+            if IS_MACOS and ffm_changed:
                 if self._ffm_enabled:
                     self.start_focus_follows_mouse()
                 else:
@@ -542,11 +542,12 @@ class HotkeyClient:
         4. Paste to now-active app
         5. Restore original clipboard
         """
-        # Get the app that was under mouse (tracked by FFM loop)
-        target_app = self._ffm_last_app if self._ffm_enabled else None
+        # Get the app that was under mouse (tracked by FFM loop, macOS only)
+        target_app = self._ffm_last_app if (IS_MACOS and self._ffm_enabled) else None
 
         # In track_only mode, activate the target app so it receives the paste
         # (In raise_on_hover mode, the app is already active from hovering)
+        # On Windows, we skip focus_app — just paste to whatever is focused
         if target_app and self._ffm_mode == "track_only":
             self._focus_app_fast(target_app)
 
@@ -889,8 +890,8 @@ class HotkeyClient:
     def on_press(self, key):
         """Handle key press events.
 
-        Only responds to LEFT-side modifier keys to avoid conflict
-        with proactive_companion which uses right-side keys.
+        Only responds to LEFT-side modifier keys. Right-side modifiers
+        are reserved and silently ignored.
 
         Cancels recording if any non-trigger key is pressed.
         """
@@ -1063,8 +1064,8 @@ class HotkeyClient:
         print("   Press Ctrl+C to exit")
         print()
 
-        # Start focus-follows-mouse (replaces Autoraise)
-        if self._ffm_enabled:
+        # Start focus-follows-mouse (macOS only — uses Quartz window detection)
+        if IS_MACOS and self._ffm_enabled:
             self.start_focus_follows_mouse()
 
         # Start settings polling (picks up changes from web UI)

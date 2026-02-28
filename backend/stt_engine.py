@@ -436,8 +436,12 @@ def transcribe_audio_with_provider(
         from groq_stt import get_groq_stt, is_groq_available
 
         if not is_groq_available():
-            print("  [Warning] Groq API key not available, falling back to local")
-            provider = "local"
+            if _IS_MACOS:
+                print("  [Warning] Groq API key not available, falling back to local")
+                provider = "local"
+            else:
+                print("  [Warning] Groq API key not available, trying OpenAI")
+                provider = "openai"
         else:
             print("  [Router] Using Groq Whisper API")
             groq_stt = get_groq_stt()
@@ -450,8 +454,23 @@ def transcribe_audio_with_provider(
         from openai_stt import get_openai_stt, is_openai_available
 
         if not is_openai_available():
-            print("  [Warning] OpenAI API key not available, falling back to local")
-            provider = "local"
+            if _IS_MACOS:
+                print("  [Warning] OpenAI API key not available, falling back to local")
+                provider = "local"
+            else:
+                print(
+                    "  [Error] No API key configured — set GROQ_API_KEY or OPENAI_API_KEY in .env"
+                )
+                return {
+                    "text": "",
+                    "language": language or "unknown",
+                    "language_probability": 0.0,
+                    "duration": audio_duration,
+                    "processing_time": time.time() - start_time,
+                    "provider": "none",
+                    "error": "No API key configured. Please set GROQ_API_KEY or OPENAI_API_KEY in .env",
+                    "audio_info": audio_info,
+                }
         else:
             print("  [Router] Using OpenAI Whisper API")
             openai_stt = get_openai_stt()

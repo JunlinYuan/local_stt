@@ -17,6 +17,10 @@ import tkinter as tk
 
 
 def main():
+    # Recording indicator uses macOS-only 'systemTransparent' — exit immediately on other platforms
+    if sys.platform != "darwin":
+        sys.exit(0)
+
     border_width = int(sys.argv[1]) if len(sys.argv) > 1 else 6
     color = sys.argv[2] if len(sys.argv) > 2 else "#FF3B30"
 

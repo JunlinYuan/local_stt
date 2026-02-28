@@ -24,7 +24,7 @@ import history
 import replacements
 import settings
 import vocabulary
-from platform_utils import get_memory_mb, IS_MACOS
+from platform_utils import get_memory_mb, IS_MACOS, PLATFORM
 from stt_engine import get_engine, transcribe_audio_with_provider
 from openai_stt import get_openai_stt, is_openai_available
 from groq_stt import get_groq_stt, is_groq_available
@@ -183,6 +183,7 @@ async def health_check():
     """
     return {
         "status": "ok",
+        "platform": PLATFORM,
         "providers": {
             "local": IS_MACOS,  # MLX only available on macOS with Apple Silicon
             "openai": is_openai_available(),

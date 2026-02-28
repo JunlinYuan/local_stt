@@ -196,14 +196,14 @@ def set_clipboard(text: str) -> bool:
             pyperclip.copy(text)
             return True
         except ImportError:
-            # Fallback: use PowerShell
+            # Fallback: use PowerShell with stdin pipe (avoids command injection)
             try:
-                # Escape single quotes for PowerShell string literals
-                escaped = text.replace("'", "''")
                 subprocess.run(
-                    ["powershell", "-Command", f"Set-Clipboard -Value '{escaped}'"],
+                    ["powershell", "-Command", "$input | Set-Clipboard"],
+                    input=text,
                     check=True,
                     capture_output=True,
+                    text=True,
                 )
                 return True
             except Exception:

@@ -58,6 +58,8 @@ build/
 backend/history.json
 backend/vocabulary.txt
 backend/settings.json
+backend/vocabulary_usage.json
+backend/replacements.json
 
 # Debug/temporary files
 backend/filter_log.txt

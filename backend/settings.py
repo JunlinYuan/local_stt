@@ -28,9 +28,9 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "type": "string",
         "options": ["local", "openai", "groq"] if _IS_MACOS else ["openai", "groq"],
         "description": (
-            "STT provider: local (lightning-whisper-mlx), OpenAI API, or Groq API"
+            "STT provider: local MLX (offline, slower), OpenAI API, or Groq API (recommended — fastest and most accurate)"
             if _IS_MACOS
-            else "STT provider: OpenAI API or Groq API (local MLX requires macOS)"
+            else "STT provider: OpenAI API or Groq API (recommended — fastest). Local MLX requires macOS."
         ),
         "display": lambda v: {
             "local": "Local (MLX)",
@@ -53,8 +53,8 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "display": lambda v: (
             {
                 "ctrl_only": "Left Ctrl Only",
-                "ctrl": "Left Ctrl + Left Option",
-                "shift": "Left Shift + Left Option",
+                "ctrl": "Left Ctrl + Left Command",
+                "shift": "Left Shift + Left Command",
             }
             if _IS_MACOS
             else {
@@ -117,15 +117,17 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
         "display": lambda v: f"{int(v // 60)}m" if v >= 60 else f"{int(v)}s",
     },
     "ffm_enabled": {
-        "default": True,
+        "default": True if _IS_MACOS else False,
         "type": "boolean",
-        "description": "Enable mouse tracking for paste targeting",
+        "platform": "macos",
+        "description": "Enable mouse tracking for paste targeting (macOS only)",
         "display": lambda v: "On" if v else "Off",
     },
     "ffm_mode": {
         "default": "track_only",
         "type": "string",
         "options": ["track_only", "raise_on_hover"],
+        "platform": "macos",
         "description": "FFM behavior: track_only (activate at paste) or raise_on_hover (raise as mouse moves)",
         "display": lambda v: "Track only" if v == "track_only" else "Raise on hover",
     },
@@ -309,6 +311,8 @@ def get_schema() -> dict[str, dict[str, Any]]:
             schema[key]["max"] = config["max"]
         if "description" in config:
             schema[key]["description"] = config["description"]
+        if "platform" in config:
+            schema[key]["platform"] = config["platform"]
     return schema
 
 

@@ -185,6 +185,9 @@ const state = {
     providerAvailable: true,
     healthCheckInterval: null,
 
+    // Platform (set from /api/health response)
+    platform: 'macos',
+
     // Settings (from server)
     settings: {
         language: '',
@@ -463,6 +466,45 @@ function updateConnectionStatus(connected) {
 // Health Check
 // =============================================================================
 
+function applyPlatformRestrictions() {
+    if (state.platform === 'windows') {
+        // Disable FFM controls on Windows (uses macOS-only Quartz window detection)
+        const ffmControl = document.getElementById('ffmControl');
+        if (ffmControl) {
+            ffmControl.classList.add('platform-disabled');
+            ffmControl.title = 'Mouse tracking is only available on macOS';
+            ffmControl.querySelectorAll('button').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+
+        // Update keybinding labels: Command (⌘) → Alt on Windows
+        const keybindToggle = document.getElementById('keybindToggle');
+        if (keybindToggle) {
+            const ctrlBtn = keybindToggle.querySelector('[data-binding="ctrl"]');
+            const shiftBtn = keybindToggle.querySelector('[data-binding="shift"]');
+            if (ctrlBtn) {
+                ctrlBtn.title = 'Ctrl + Alt';
+                const keys = ctrlBtn.querySelector('.keybind-keys');
+                if (keys) keys.textContent = '⌃ + Alt';
+            }
+            if (shiftBtn) {
+                shiftBtn.title = 'Shift + Alt';
+                const keys = shiftBtn.querySelector('.keybind-keys');
+                if (keys) keys.textContent = '⇧ + Alt';
+            }
+        }
+
+        // Update recording hint text
+        const recHint = document.getElementById('recHint');
+        if (recHint && recHint.textContent.includes('Command')) {
+            recHint.textContent = recHint.textContent.replace('Command', 'Alt');
+        }
+
+        console.log('Platform: Windows — keybinding labels and FFM controls updated');
+    }
+}
+
 async function checkHealth() {
     try {
         const response = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
@@ -473,6 +515,12 @@ async function checkHealth() {
         const data = await response.json();
         const wasHealthy = state.serverHealthy;
         const wasProviderAvailable = state.providerAvailable;
+
+        // Capture platform on first successful health check
+        if (data.platform && state.platform !== data.platform) {
+            state.platform = data.platform;
+            applyPlatformRestrictions();
+        }
 
         state.serverHealthy = data.status === 'ok';
 
@@ -554,9 +602,9 @@ function initKeybindToggle() {
 
 // Provider icons and display names (fallbacks if not in schema)
 const PROVIDER_CONFIG = {
-    local: { icon: '🖥️', name: 'Local', title: 'Local (lightning-whisper-mlx)' },
+    local: { icon: '🖥️', name: 'Local', title: 'Local MLX (slower, macOS only)' },
     openai: { icon: '☁️', name: 'OpenAI', title: 'OpenAI Whisper API' },
-    groq: { icon: '🚀', name: 'Groq', title: 'Groq Whisper API (Fast)' },
+    groq: { icon: '🚀', name: 'Groq', title: 'Groq Whisper API — Recommended' },
     // Add new providers here - they'll also work if only defined in backend schema
 };
 

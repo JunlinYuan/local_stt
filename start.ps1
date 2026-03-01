@@ -37,10 +37,12 @@ if ($existingProcess) {
 
 Write-Host "Starting server..."
 # Clear old log and start server
+$ERR_FILE = Join-Path $env:TEMP "local-stt-server-err.log"
 "" | Out-File -FilePath $LOG_FILE -Force
+"" | Out-File -FilePath $ERR_FILE -Force
 $env:PYTHONUNBUFFERED = "1"
 $serverProcess = Start-Process -FilePath "uv" -ArgumentList "run", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000" `
-    -RedirectStandardOutput $LOG_FILE -RedirectStandardError $LOG_FILE `
+    -RedirectStandardOutput $LOG_FILE -RedirectStandardError $ERR_FILE `
     -NoNewWindow -PassThru
 
 # Wait for server to be ready

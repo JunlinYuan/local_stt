@@ -729,6 +729,18 @@ body.theme-light .ffm-mode-btn.active .mode-label {
     color: var(--accent-ready);
 }
 
+/* Platform-disabled controls (grayed out on unsupported platforms) */
+.platform-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: not-allowed;
+    position: relative;
+}
+
+.platform-disabled button {
+    cursor: not-allowed !important;
+}
+
 /* ==========================================================================
    Key Indicators
    ========================================================================== */

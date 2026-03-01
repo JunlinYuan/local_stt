@@ -1,0 +1,12 @@
+{
+  "replacements": [
+    {
+      "from": "cloud code",
+      "to": "Claude Code"
+    },
+    {
+      "from": "open a eye",
+      "to": "OpenAI"
+    }
+  ]
+}

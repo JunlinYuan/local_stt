@@ -6,7 +6,7 @@ Speech-to-text application with push-to-talk interface. Supports local processin
 
 ### Core
 - **Push-to-Talk**: Hold hotkey to record, release to transcribe
-- **Multiple STT Providers**: Local (MLX, macOS only), OpenAI API, or Groq API (fastest)
+- **Multiple STT Providers**: Local (MLX, macOS only — offline but slower), OpenAI API, or Groq API (recommended — fastest and most accurate)
 - **Multi-language**: Auto-detect or specify language (en, fr, zh, ja, etc.)
 - **Custom Vocabulary**: Bias transcription toward domain-specific terms
 - **Cross-platform**: macOS and Windows 10+ support
@@ -83,7 +83,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 ### Setting Up API Keys
 
-Cloud APIs are faster than local processing. **Groq is recommended** (free tier, fastest).
+Cloud APIs are significantly faster and more accurate than local processing. **Groq is recommended** (free tier, ~200x real-time speed, best accuracy).
 
 ```bash
 cp .env.example .env
@@ -93,7 +93,7 @@ cp .env.example .env
 - **Groq** (recommended): https://console.groq.com/keys - Free tier, ~200x real-time speed
 - **OpenAI** (optional): https://platform.openai.com/api-keys - Paid only
 
-On macOS, if a cloud provider key is missing, the app falls back to local MLX processing.
+On macOS, if a cloud provider key is missing, the app falls back to local MLX processing (offline, but slower and less accurate than cloud APIs).
 On Windows, a cloud provider API key is **required** (local MLX is not available).
 
 ## Configuration
@@ -102,7 +102,7 @@ All settings managed via web UI (click gear icon) or API (`/api/settings`):
 
 | Setting | Description |
 |---------|-------------|
-| **STT Provider** | Local (MLX, macOS only), OpenAI API, or Groq API |
+| **STT Provider** | Local MLX (macOS only, offline but slower), OpenAI API, or Groq API (recommended) |
 | **Language** | Auto-detect or specific (en, fr, zh, ja) |
 | **Keybinding** | Ctrl only, Ctrl+Alt (Win) / Ctrl+Cmd (Mac), Shift+Alt (Win) / Shift+Cmd (Mac) |
 | **FFM** | Focus-follows-mouse on/off |

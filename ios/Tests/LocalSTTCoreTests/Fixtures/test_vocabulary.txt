@@ -1,0 +1,9 @@
+# Test vocabulary file
+# Comments and blank lines should be skipped
+
+MCP
+TEMPEST
+Claude Code
+Navier-Stokes
+GPT-4o
+STT

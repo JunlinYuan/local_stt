@@ -17,10 +17,14 @@ targets:
     sources:
       - path: Sources/LocalSTT
         type: group
-    resources:
       - path: Resources/vocabulary.txt
-      - path: Resources/Info.plist
-        buildPhase: none
+        buildPhase: resources
+      - path: Resources/vocabulary_usage.json
+        buildPhase: resources
+      - path: Resources/replacements.json
+        buildPhase: resources
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
     dependencies:
       - package: LocalSTTCore
     settings:
@@ -33,6 +37,7 @@ targets:
         SWIFT_VERSION: "5.9"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   LocalSTTCoreTests:
     type: bundle.unit-test

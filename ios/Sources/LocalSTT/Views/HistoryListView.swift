@@ -47,15 +47,24 @@ struct HistoryListView: View {
     // MARK: - Compact Mode (ScrollView + custom cards for inline embedding)
 
     private var compactList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(filteredItems) { item in
-                    compactRow(item)
-                        .padding(.horizontal, 16)
-                        .onTapGesture { copyToClipboard(item) }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(filteredItems) { item in
+                        compactRow(item)
+                            .id(item.id)
+                            .padding(.horizontal, 16)
+                            .onTapGesture { copyToClipboard(item) }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .onChange(of: highlightedID) { _, newID in
+                guard let id = newID else { return }
+                withAnimation(.easeOut(duration: 0.3)) {
+                    proxy.scrollTo(id, anchor: .top)
                 }
             }
-            .padding(.vertical, 4)
         }
     }
 

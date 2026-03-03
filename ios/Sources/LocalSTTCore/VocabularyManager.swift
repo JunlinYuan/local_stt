@@ -13,7 +13,9 @@ public final class VocabularyManager: Sendable {
     public static let maxPromptLength = 896
 
     private let fileURL: URL
+    private let usageFileURL: URL?
     private let _words: ManagedWords
+    private let _usage: ManagedUsage
 
     /// Thread-safe wrapper for mutable word list.
     private final class ManagedWords: @unchecked Sendable {
@@ -33,8 +35,37 @@ public final class VocabularyManager: Sendable {
         }
     }
 
+    /// Thread-safe wrapper for usage counts.
+    private final class ManagedUsage: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storage: [String: Int] = [:]
+
+        var value: [String: Int] {
+            lock.lock()
+            defer { lock.unlock() }
+            return storage
+        }
+
+        func set(_ newValue: [String: Int]) {
+            lock.lock()
+            defer { lock.unlock() }
+            storage = newValue
+        }
+
+        func increment(_ keys: [String]) {
+            lock.lock()
+            defer { lock.unlock() }
+            for key in keys {
+                storage[key, default: 0] += 1
+            }
+        }
+    }
+
     /// Current vocabulary words.
     public var words: [String] { _words.value }
+
+    /// Usage counts keyed by vocabulary word (case-sensitive).
+    public var usageCounts: [String: Int] { _usage.value }
 
     /// Initialize with a vocabulary file URL.
     ///
@@ -44,7 +75,7 @@ public final class VocabularyManager: Sendable {
     /// - Parameters:
     ///   - bundledFileURL: URL of the bundled vocabulary.txt in the app bundle
     ///   - writableDirectoryURL: Writable directory for the working copy (defaults to Application Support)
-    public init(bundledFileURL: URL? = nil, writableDirectoryURL: URL? = nil) {
+    public init(bundledFileURL: URL? = nil, bundledUsageURL: URL? = nil, writableDirectoryURL: URL? = nil) {
         let appSupport = writableDirectoryURL ?? FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!.appendingPathComponent("LocalSTT")
@@ -53,7 +84,9 @@ public final class VocabularyManager: Sendable {
         try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
 
         self.fileURL = appSupport.appendingPathComponent("vocabulary.txt")
+        self.usageFileURL = appSupport.appendingPathComponent("vocabulary_usage.json")
         self._words = ManagedWords()
+        self._usage = ManagedUsage()
 
         // Copy bundled file on first launch
         if !FileManager.default.fileExists(atPath: fileURL.path) {
@@ -71,13 +104,38 @@ public final class VocabularyManager: Sendable {
             }
         }
 
+        // Copy bundled usage file on first launch
+        if let usageURL = usageFileURL,
+           !FileManager.default.fileExists(atPath: usageURL.path),
+           let bundledUsage = bundledUsageURL {
+            try? FileManager.default.copyItem(at: bundledUsage, to: usageURL)
+        }
+
         loadFromFile()
+        loadUsageFromFile()
+
+        // Re-seed from bundle if writable file has no words (app upgrade scenario:
+        // the file existed before bundled data was added, so copy-on-first-launch was skipped)
+        if _words.value.isEmpty, let bundled = bundledFileURL,
+           FileManager.default.fileExists(atPath: bundled.path) {
+            try? FileManager.default.removeItem(at: fileURL)
+            try? FileManager.default.copyItem(at: bundled, to: fileURL)
+            loadFromFile()
+        }
+        if _usage.value.isEmpty, let usageURL = usageFileURL, let bundledUsage = bundledUsageURL,
+           FileManager.default.fileExists(atPath: bundledUsage.path) {
+            try? FileManager.default.removeItem(at: usageURL)
+            try? FileManager.default.copyItem(at: bundledUsage, to: usageURL)
+            loadUsageFromFile()
+        }
     }
 
     /// Initialize with an explicit word list (for testing).
     public init(words: [String]) {
         self.fileURL = URL(fileURLWithPath: "/dev/null")
+        self.usageFileURL = nil
         self._words = ManagedWords()
+        self._usage = ManagedUsage()
         self._words.set(Array(words.prefix(Self.maxVocabularySize)))
     }
 
@@ -95,8 +153,10 @@ public final class VocabularyManager: Sendable {
         _words.set(Array(loaded.prefix(Self.maxVocabularySize)))
     }
 
-    /// Save current vocabulary to the file.
+    /// Save current vocabulary to the file, reordered by usage (most-used first).
     public func saveToFile() {
+        reorderByUsage()
+
         var lines = [
             "# Custom vocabulary for speech-to-text",
             "# One word/phrase per line, comments start with #",
@@ -108,6 +168,43 @@ public final class VocabularyManager: Sendable {
 
         let content = lines.joined(separator: "\n")
         try? content.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    // MARK: - Usage Tracking
+
+    /// Record usage for matched vocabulary words.
+    public func recordUsage(for matchedWords: [String]) {
+        guard !matchedWords.isEmpty else { return }
+        _usage.increment(matchedWords)
+        saveUsageToFile()
+    }
+
+    /// Sort words descending by usage count (stable sort for ties).
+    private func reorderByUsage() {
+        let counts = _usage.value
+        guard !counts.isEmpty else { return }
+
+        var current = _words.value
+        current.sort { a, b in
+            let countA = counts[a] ?? 0
+            let countB = counts[b] ?? 0
+            return countA > countB
+        }
+        _words.set(current)
+    }
+
+    private func loadUsageFromFile() {
+        guard let url = usageFileURL,
+              let data = try? Data(contentsOf: url),
+              let counts = try? JSONDecoder().decode([String: Int].self, from: data)
+        else { return }
+        _usage.set(counts)
+    }
+
+    private func saveUsageToFile() {
+        guard let url = usageFileURL else { return }
+        guard let data = try? JSONEncoder().encode(_usage.value) else { return }
+        try? data.write(to: url, options: .atomic)
     }
 
     // MARK: - Word Management

@@ -1,7 +1,7 @@
 import SwiftUI
 import LocalSTTCore
 
-/// Settings screen — API key, language, vocabulary editor.
+/// Settings screen — API key only (language/vocab moved to main screen).
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -10,7 +10,6 @@ struct SettingsView: View {
     @State private var showAPIKey = false
     @State private var isTesting = false
     @State private var testResult: Bool?
-    @State private var vocabText = ""
 
     var body: some View {
         NavigationStack {
@@ -69,53 +68,6 @@ struct SettingsView: View {
                 } footer: {
                     Text("Get your free API key from console.groq.com")
                 }
-
-                // Language Section
-                Section("Language") {
-                    Picker("Language", selection: Binding(
-                        get: { appState.language },
-                        set: { appState.language = $0 }
-                    )) {
-                        Text("Auto-detect").tag("")
-                        Text("English").tag("en")
-                        Text("Français").tag("fr")
-                        Text("中文").tag("zh")
-                        Text("日本語").tag("ja")
-                    }
-                }
-
-                // Vocabulary Section
-                Section {
-                    TextEditor(text: $vocabText)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 200)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
-                    HStack {
-                        let wordCount = vocabText
-                            .components(separatedBy: .newlines)
-                            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#") }
-                            .count
-
-                        Text("\(wordCount)/\(VocabularyManager.maxVocabularySize) words")
-                            .font(.caption)
-                            .foregroundStyle(
-                                wordCount > VocabularyManager.maxVocabularySize
-                                    ? .red : Color.textMuted
-                            )
-
-                        Spacer()
-
-                        Button("Save") {
-                            saveVocabulary()
-                        }
-                    }
-                } header: {
-                    Text("Vocabulary")
-                } footer: {
-                    Text("One word/phrase per line. Lines starting with # are comments. Case is preserved (TEMPEST stays TEMPEST).")
-                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -126,7 +78,6 @@ struct SettingsView: View {
             }
             .onAppear {
                 apiKey = appState.getAPIKey()
-                loadVocabularyText()
             }
         }
     }
@@ -151,18 +102,5 @@ struct SettingsView: View {
                 testResult = nil
             }
         }
-    }
-
-    private func loadVocabularyText() {
-        vocabText = appState.vocabularyManager.words.joined(separator: "\n")
-    }
-
-    private func saveVocabulary() {
-        let words = vocabText
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty && !$0.hasPrefix("#") }
-
-        appState.vocabularyManager.setWords(words)
     }
 }

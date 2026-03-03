@@ -11,34 +11,54 @@
 		2469146667BF706AF1D09B56 /* GroqServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF4A35BC13FDDB5C74C6399 /* GroqServiceTests.swift */; };
 		30A9362CEC05D378B8D98DC6 /* LocalSTTCore in Frameworks */ = {isa = PBXBuildFile; productRef = EC23A7913EEDAD1A74A4CA26 /* LocalSTTCore */; };
 		32B675416BE4E5AB9D779E1F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810D0441A1CEC905FAE2DF65 /* SettingsView.swift */; };
+		3E5EA1DC1633759266AD0013 /* vocabulary_usage.json in Resources */ = {isa = PBXBuildFile; fileRef = 28EE278A516C6BBBA00C2DFA /* vocabulary_usage.json */; };
+		4B246FF434F4B5A66F331B5C /* HistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C323AB036BBC71028DFDC4 /* HistoryListView.swift */; };
+		4B75ADE26DC618D51D12FB37 /* HallucinationFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302F4F14255B4BFF9C91D366 /* HallucinationFilterTests.swift */; };
+		60F29EE9CC9A6EC19AEE51D7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9A626E63E26443B770DDFE1C /* Assets.xcassets */; };
 		6B329BB6B4FA7D020A77EDF3 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FD8FEF4BEA40D3D39A3D38 /* AudioRecorder.swift */; };
+		72D33AB50E339D6491AAF924 /* VocabularyPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C28F8BA841D0294EEF65B16 /* VocabularyPanelView.swift */; };
 		73E9F4718910AD1A610182CE /* TranscriptionResultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4E6CCF2411F1C1E0F7EC75 /* TranscriptionResultTests.swift */; };
 		88AF5B29767344AFC8ABA37B /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BD4E724FFA8E87C4172D74 /* Color+Hex.swift */; };
+		88FD041595FD7DFA26B17A95 /* ReplacementManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006309A96B1E9DFB5E6C5777 /* ReplacementManagerTests.swift */; };
+		A967C76A3EA3762871C9E8BE /* replacements.json in Resources */ = {isa = PBXBuildFile; fileRef = A9A35D177815517FA0D42A7A /* replacements.json */; };
+		AB9DA42608CF5594A17C0EB6 /* LanguageBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632D317CEAFC7A9E6DA05392 /* LanguageBar.swift */; };
 		AF93E81C1957DAA49AAF206E /* ResultCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22F660CC511619E0D315914 /* ResultCard.swift */; };
 		B7C4D6CA94392C19753AF2E8 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2629995CFEE99F254F7BC99E /* WaveformView.swift */; };
 		C2A7F1AC8AA06792556F194B /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65FFF55974CD0C2B63F05863 /* AppState.swift */; };
+		C6B422E355EBCADFF5E84ABC /* vocabulary.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9DB74353FA1D445D288D31F1 /* vocabulary.txt */; };
 		C87BE3DB367AB1B9497F780B /* VocabularyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED9C30838965FC26EA42943 /* VocabularyManagerTests.swift */; };
 		D6582B628D2F78795F026299 /* RecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39AE87ACB67D01411094552A /* RecordButton.swift */; };
 		DE9CC0655BC64D20427AB001 /* WAVEncoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F710E6E4A88F7B5532072C6 /* WAVEncoderTests.swift */; };
 		E9249F249260771EB4A8EBF0 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8397BB70DB4463C941E24E2 /* RecordingView.swift */; };
+		E9E100C7B80E7185B3568A6C /* ReplacementPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493534A8E5DBE08BA82E4A11 /* ReplacementPanelView.swift */; };
 		F22463D871678C0A5DF847E0 /* test_vocabulary.txt in Resources */ = {isa = PBXBuildFile; fileRef = 802C4B85B3CC48C845442EA4 /* test_vocabulary.txt */; };
 		F8FA1416FE1300D4F47FCF46 /* LocalSTTApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA0A19F3F2905DBD56C426EB /* LocalSTTApp.swift */; };
 		FFB0924B99C5D97D0DB93C58 /* LocalSTTCore in Frameworks */ = {isa = PBXBuildFile; productRef = F3EBAFE4AEEA4D664306BCFE /* LocalSTTCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		006309A96B1E9DFB5E6C5777 /* ReplacementManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplacementManagerTests.swift; sourceTree = "<group>"; };
 		026B35507D53622D0BF82A68 /* TranscriptionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionHistoryView.swift; sourceTree = "<group>"; };
+		12C323AB036BBC71028DFDC4 /* HistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryListView.swift; sourceTree = "<group>"; };
 		23BD4E724FFA8E87C4172D74 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		2629995CFEE99F254F7BC99E /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
+		28EE278A516C6BBBA00C2DFA /* vocabulary_usage.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = vocabulary_usage.json; sourceTree = "<group>"; };
+		302F4F14255B4BFF9C91D366 /* HallucinationFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HallucinationFilterTests.swift; sourceTree = "<group>"; };
 		39AE87ACB67D01411094552A /* RecordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordButton.swift; sourceTree = "<group>"; };
+		493534A8E5DBE08BA82E4A11 /* ReplacementPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplacementPanelView.swift; sourceTree = "<group>"; };
+		5C28F8BA841D0294EEF65B16 /* VocabularyPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VocabularyPanelView.swift; sourceTree = "<group>"; };
 		5CDBD40A56C72191AB6F53BB /* LocalSTT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalSTT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5ED9C30838965FC26EA42943 /* VocabularyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VocabularyManagerTests.swift; sourceTree = "<group>"; };
+		632D317CEAFC7A9E6DA05392 /* LanguageBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageBar.swift; sourceTree = "<group>"; };
 		65FFF55974CD0C2B63F05863 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		7A4E6CCF2411F1C1E0F7EC75 /* TranscriptionResultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionResultTests.swift; sourceTree = "<group>"; };
 		7F710E6E4A88F7B5532072C6 /* WAVEncoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WAVEncoderTests.swift; sourceTree = "<group>"; };
 		802C4B85B3CC48C845442EA4 /* test_vocabulary.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = test_vocabulary.txt; sourceTree = "<group>"; };
 		810D0441A1CEC905FAE2DF65 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8FA3DF860D35AA1B9932FD49 /* LocalSTTCoreTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LocalSTTCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A626E63E26443B770DDFE1C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9DB74353FA1D445D288D31F1 /* vocabulary.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = vocabulary.txt; sourceTree = "<group>"; };
+		A9A35D177815517FA0D42A7A /* replacements.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = replacements.json; sourceTree = "<group>"; };
 		B22F660CC511619E0D315914 /* ResultCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultCard.swift; sourceTree = "<group>"; };
 		B9FD8FEF4BEA40D3D39A3D38 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
 		CFBE96FCC19854E71D3BC4DF /* ios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios; path = .; sourceTree = SOURCE_ROOT; };
@@ -79,6 +99,8 @@
 			isa = PBXGroup;
 			children = (
 				DBF4A35BC13FDDB5C74C6399 /* GroqServiceTests.swift */,
+				302F4F14255B4BFF9C91D366 /* HallucinationFilterTests.swift */,
+				006309A96B1E9DFB5E6C5777 /* ReplacementManagerTests.swift */,
 				7A4E6CCF2411F1C1E0F7EC75 /* TranscriptionResultTests.swift */,
 				5ED9C30838965FC26EA42943 /* VocabularyManagerTests.swift */,
 				7F710E6E4A88F7B5532072C6 /* WAVEncoderTests.swift */,
@@ -143,14 +165,29 @@
 		CCF51F662ACF0E39E86145AF /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				12C323AB036BBC71028DFDC4 /* HistoryListView.swift */,
+				632D317CEAFC7A9E6DA05392 /* LanguageBar.swift */,
 				39AE87ACB67D01411094552A /* RecordButton.swift */,
 				D8397BB70DB4463C941E24E2 /* RecordingView.swift */,
+				493534A8E5DBE08BA82E4A11 /* ReplacementPanelView.swift */,
 				B22F660CC511619E0D315914 /* ResultCard.swift */,
 				810D0441A1CEC905FAE2DF65 /* SettingsView.swift */,
 				026B35507D53622D0BF82A68 /* TranscriptionHistoryView.swift */,
+				5C28F8BA841D0294EEF65B16 /* VocabularyPanelView.swift */,
 				2629995CFEE99F254F7BC99E /* WaveformView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		D3C6829E1A780927221856FE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9A626E63E26443B770DDFE1C /* Assets.xcassets */,
+				A9A35D177815517FA0D42A7A /* replacements.json */,
+				28EE278A516C6BBBA00C2DFA /* vocabulary_usage.json */,
+				9DB74353FA1D445D288D31F1 /* vocabulary.txt */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		DF9AFABFC4BE2A061AA081B8 /* Sources */ = {
@@ -165,6 +202,7 @@
 			isa = PBXGroup;
 			children = (
 				91DBA95972DA07002D32D42F /* Packages */,
+				D3C6829E1A780927221856FE /* Resources */,
 				DF9AFABFC4BE2A061AA081B8 /* Sources */,
 				90AF298D55A391E744826572 /* Tests */,
 				603CCA53785EDE116A76FB60 /* Products */,
@@ -179,6 +217,7 @@
 			buildConfigurationList = 64D5DDCA6B13761AB1D0BD56 /* Build configuration list for PBXNativeTarget "LocalSTT" */;
 			buildPhases = (
 				5D86ABCC65052EEBAC2A8B1B /* Sources */,
+				BBD6278A06C4C15A1FFBD0E2 /* Resources */,
 				236B16AAFA919A0F3002F83A /* Frameworks */,
 			);
 			buildRules = (
@@ -253,6 +292,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BBD6278A06C4C15A1FFBD0E2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				60F29EE9CC9A6EC19AEE51D7 /* Assets.xcassets in Resources */,
+				A967C76A3EA3762871C9E8BE /* replacements.json in Resources */,
+				C6B422E355EBCADFF5E84ABC /* vocabulary.txt in Resources */,
+				3E5EA1DC1633759266AD0013 /* vocabulary_usage.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -261,6 +311,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2469146667BF706AF1D09B56 /* GroqServiceTests.swift in Sources */,
+				4B75ADE26DC618D51D12FB37 /* HallucinationFilterTests.swift in Sources */,
+				88FD041595FD7DFA26B17A95 /* ReplacementManagerTests.swift in Sources */,
 				73E9F4718910AD1A610182CE /* TranscriptionResultTests.swift in Sources */,
 				C87BE3DB367AB1B9497F780B /* VocabularyManagerTests.swift in Sources */,
 				DE9CC0655BC64D20427AB001 /* WAVEncoderTests.swift in Sources */,
@@ -274,12 +326,16 @@
 				C2A7F1AC8AA06792556F194B /* AppState.swift in Sources */,
 				6B329BB6B4FA7D020A77EDF3 /* AudioRecorder.swift in Sources */,
 				88AF5B29767344AFC8ABA37B /* Color+Hex.swift in Sources */,
+				4B246FF434F4B5A66F331B5C /* HistoryListView.swift in Sources */,
+				AB9DA42608CF5594A17C0EB6 /* LanguageBar.swift in Sources */,
 				F8FA1416FE1300D4F47FCF46 /* LocalSTTApp.swift in Sources */,
 				D6582B628D2F78795F026299 /* RecordButton.swift in Sources */,
 				E9249F249260771EB4A8EBF0 /* RecordingView.swift in Sources */,
+				E9E100C7B80E7185B3568A6C /* ReplacementPanelView.swift in Sources */,
 				AF93E81C1957DAA49AAF206E /* ResultCard.swift in Sources */,
 				32B675416BE4E5AB9D779E1F /* SettingsView.swift in Sources */,
 				0E3D8B526258B988731EA0E0 /* TranscriptionHistoryView.swift in Sources */,
+				72D33AB50E339D6491AAF924 /* VocabularyPanelView.swift in Sources */,
 				B7C4D6CA94392C19753AF2E8 /* WaveformView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -267,4 +267,68 @@ final class VocabularyManagerTests: XCTestCase {
         let manager = VocabularyManager(writableDirectoryURL: tempDir)
         XCTAssertEqual(manager.words, ["MCP", "TEMPEST", "STT"])
     }
+
+    // MARK: - Usage Tracking
+
+    func testRecordUsage() {
+        let manager = VocabularyManager(words: ["MCP", "TEMPEST", "STT"])
+        manager.recordUsage(for: ["MCP", "STT"])
+        manager.recordUsage(for: ["MCP"])
+
+        XCTAssertEqual(manager.usageCounts["MCP"], 2)
+        XCTAssertEqual(manager.usageCounts["STT"], 1)
+        XCTAssertNil(manager.usageCounts["TEMPEST"])
+    }
+
+    func testUsageCounts() {
+        let manager = VocabularyManager(words: ["alpha", "beta"])
+        XCTAssertTrue(manager.usageCounts.isEmpty)
+
+        manager.recordUsage(for: ["alpha"])
+        XCTAssertEqual(manager.usageCounts["alpha"], 1)
+    }
+
+    func testReorderByUsage() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = VocabularyManager(writableDirectoryURL: tempDir)
+        manager.setWords(["alpha", "beta", "gamma"])
+
+        // Record usage: gamma=3, alpha=1, beta=0
+        manager.recordUsage(for: ["gamma", "gamma", "gamma"])
+        manager.recordUsage(for: ["alpha"])
+
+        // saveToFile() calls reorderByUsage() internally
+        manager.saveToFile()
+
+        // After reorder: gamma (3), alpha (1), beta (0)
+        XCTAssertEqual(manager.words[0], "gamma")
+        XCTAssertEqual(manager.words[1], "alpha")
+        XCTAssertEqual(manager.words[2], "beta")
+    }
+
+    func testUsageFileRoundTrip() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = VocabularyManager(writableDirectoryURL: tempDir)
+        manager.setWords(["MCP", "TEMPEST"])
+        manager.recordUsage(for: ["MCP", "MCP", "TEMPEST"])
+
+        // New manager should load usage counts from file
+        let manager2 = VocabularyManager(writableDirectoryURL: tempDir)
+        XCTAssertEqual(manager2.usageCounts["MCP"], 2)
+        XCTAssertEqual(manager2.usageCounts["TEMPEST"], 1)
+    }
+
+    func testRecordUsageEmptyDoesNothing() {
+        let manager = VocabularyManager(words: ["MCP"])
+        manager.recordUsage(for: [])
+        XCTAssertTrue(manager.usageCounts.isEmpty)
+    }
 }

@@ -1,12 +1,19 @@
 import SwiftUI
 import LocalSTTCore
 
-/// Main push-to-talk screen.
+/// Main push-to-talk screen with bottom-anchored record button and inline history.
+///
+/// Layout (top to bottom):
+///   1. History list (scrollable, fills available space)
+///   2. Language bar + Vocab/Replace chips
+///   3. Status messages (error/result/tooShort)
+///   4. Record button (large rectangle, anchored near bottom)
+///   5. Bottom padding (for home indicator swipe)
 struct RecordingView: View {
     @Environment(AppState.self) private var appState
     @State private var showSettings = false
-    @State private var showHistory = false
-    @State private var timer: Timer?
+    @State private var showVocabPanel = false
+    @State private var showReplacePanel = false
 
     var body: some View {
         NavigationStack {
@@ -14,48 +21,37 @@ struct RecordingView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Language picker
-                    languagePicker
-                        .padding(.top, 12)
+                    // History fills available space at top
+                    HistoryListView(
+                        items: appState.history,
+                        highlightedID: latestResultID,
+                        isCompact: true
+                    )
+                    .frame(maxHeight: .infinity)
 
-                    Spacer()
-
-                    // Waveform / status area
+                    // Status area (error / result / tooShort)
                     statusArea
-                        .frame(height: 80)
-                        .padding(.bottom, 24)
 
-                    // Record button
+                    // Record button (large rectangle)
                     RecordButton()
-                        .padding(.bottom, 32)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
 
-                    // Result card
-                    if case .result(let result) = appState.state {
-                        ResultCard(result: result, justCopied: true)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .padding(.horizontal, 20)
-                    }
+                    // Language bar (below button)
+                    LanguageBar(language: Binding(
+                        get: { appState.language },
+                        set: { appState.language = $0 }
+                    ))
+                    .padding(.bottom, 6)
 
-                    if case .error(let message) = appState.state {
-                        errorBanner(message)
-                            .transition(.opacity)
-                            .padding(.horizontal, 20)
-                    }
-
-                    Spacer()
+                    // Quick-access chips (bottom)
+                    quickAccessChips
+                        .padding(.bottom, 34)
                 }
                 .frame(maxWidth: 480) // iPad constraint
             }
             .animation(.easeInOut(duration: 0.3), value: appState.state)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showHistory = true
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .foregroundStyle(Color.textMuted)
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
@@ -68,108 +64,105 @@ struct RecordingView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
-            .sheet(isPresented: $showHistory) {
-                TranscriptionHistoryView()
+            .sheet(isPresented: $showVocabPanel) {
+                VocabularyPanelView()
+            }
+            .sheet(isPresented: $showReplacePanel) {
+                ReplacementPanelView()
             }
         }
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Language Picker
+    // MARK: - Quick Access Chips
 
-    private var languagePicker: some View {
-        HStack {
-            Spacer()
-            Menu {
-                Button("Auto-detect") { appState.language = "" }
-                Divider()
-                Button("English") { appState.language = "en" }
-                Button("Français") { appState.language = "fr" }
-                Button("中文") { appState.language = "zh" }
-                Button("日本語") { appState.language = "ja" }
+    private var quickAccessChips: some View {
+        HStack(spacing: 10) {
+            Button {
+                showVocabPanel = true
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "globe")
-                    Text(languageLabel)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
+                    Text("VOCAB")
+                    Text("(\(appState.vocabularyWords.count))")
+                        .foregroundStyle(Color.textMuted)
                 }
-                .font(.subheadline)
-                .foregroundStyle(Color.textMuted)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 .background(Color.appSurface, in: Capsule())
+                .foregroundStyle(Color.textPrimary)
             }
-            Spacer()
-        }
-    }
+            .buttonStyle(.plain)
 
-    private var languageLabel: String {
-        switch appState.language {
-        case "en": return "English"
-        case "fr": return "Français"
-        case "zh": return "中文"
-        case "ja": return "日本語"
-        default: return "Auto"
+            Button {
+                showReplacePanel = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text("REPLACE")
+                    Text("(\(appState.replacementRules.count))")
+                        .foregroundStyle(Color.textMuted)
+                }
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.appSurface, in: Capsule())
+                .foregroundStyle(Color.textPrimary)
+            }
+            .buttonStyle(.plain)
         }
     }
 
     // MARK: - Status Area
 
+    /// Shows feedback for error/result/tooShort states only.
+    /// Recording and transcribing states are displayed on the button itself.
     @ViewBuilder
     private var statusArea: some View {
         switch appState.state {
-        case .ready:
-            Text("Hold to record")
-                .font(.headline)
-                .foregroundStyle(Color.textMuted)
-
-        case .recording:
-            VStack(spacing: 12) {
-                WaveformView()
-                Text(formatDuration(appState.recordingDuration))
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(Color.recordingRed)
-            }
-
-        case .transcribing:
-            VStack(spacing: 8) {
-                ProgressView()
-                    .tint(Color.processingAmber)
-                Text("Transcribing...")
-                    .font(.subheadline)
+        case .tooShort:
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.processingAmber)
+                Text("Recording too short")
+                    .font(.caption)
                     .foregroundStyle(Color.processingAmber)
             }
+            .padding(.bottom, 8)
 
         case .result:
-            EmptyView()
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentTeal)
+                Text("Copied to clipboard")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentTeal)
+            }
+            .padding(.bottom, 8)
 
-        case .error:
+        case .error(let message):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(Color.textPrimary)
+                    .lineLimit(2)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+
+        default:
             EmptyView()
         }
-    }
-
-    // MARK: - Error Banner
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(Color.textPrimary)
-                .lineLimit(2)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Helpers
 
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+    /// ID of the latest result for highlighting in history.
+    private var latestResultID: UUID? {
+        if case .result(let result) = appState.state {
+            return result.id
+        }
+        return nil
     }
 }

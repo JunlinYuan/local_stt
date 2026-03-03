@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Hold-to-record button with visual state feedback.
+/// Hold-to-record button — full-width rounded rectangle, WeChat-style.
 ///
 /// Uses `UILongPressGestureRecognizer` via `UIViewRepresentable` for reliable
 /// touch-down/up detection. SwiftUI's `DragGesture(minimumDistance: 0)` conflicts
@@ -9,31 +9,30 @@ struct RecordButton: View {
     @Environment(AppState.self) private var appState
     @State private var isPressed = false
     @State private var pulseAnimation = false
-    @State private var spinRotation: Double = 0
     @State private var timer: Timer?
 
-    private let buttonSize: CGFloat = 120
+    private let buttonHeight: CGFloat = 120
+    private let cornerRadius: CGFloat = 20
 
     var body: some View {
         ZStack {
-            // Outer ring
-            outerRing
+            // Background fill
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(fillColor)
 
-            // Inner circle
-            Circle()
-                .fill(innerColor)
-                .frame(width: buttonSize - 24, height: buttonSize - 24)
+            // Border
+            borderView
 
-            // Icon
-            innerIcon
+            // Content (icon + text)
+            contentView
         }
-        .frame(width: buttonSize, height: buttonSize)
+        .frame(maxWidth: .infinity)
+        .frame(height: buttonHeight)
         .overlay {
             HoldGestureView(
                 onBegan: { startRecording() },
                 onEnded: { stopRecording() }
             )
-            .frame(width: buttonSize, height: buttonSize)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: isPressed)
         .onChange(of: appState.state) { _, newState in
@@ -51,14 +50,13 @@ struct RecordButton: View {
     // MARK: - Visual States
 
     @ViewBuilder
-    private var outerRing: some View {
+    private var borderView: some View {
         switch appState.state {
         case .recording:
-            Circle()
-                .stroke(Color.recordingRed, lineWidth: 4)
-                .frame(width: buttonSize, height: buttonSize)
-                .scaleEffect(pulseAnimation ? 1.1 : 1.0)
-                .opacity(pulseAnimation ? 0.6 : 1.0)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.recordingRed, lineWidth: 3)
+                .scaleEffect(pulseAnimation ? 1.02 : 1.0)
+                .opacity(pulseAnimation ? 0.7 : 1.0)
                 .animation(
                     .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
                     value: pulseAnimation
@@ -67,49 +65,48 @@ struct RecordButton: View {
                 .onDisappear { pulseAnimation = false }
 
         case .transcribing:
-            Circle()
-                .trim(from: 0, to: 0.7)
-                .stroke(Color.processingAmber, lineWidth: 4)
-                .frame(width: buttonSize, height: buttonSize)
-                .rotationEffect(.degrees(spinRotation))
-                .animation(
-                    .linear(duration: 1).repeatForever(autoreverses: false),
-                    value: spinRotation
-                )
-                .onAppear { spinRotation = 360 }
-                .onDisappear { spinRotation = 0 }
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.processingAmber, lineWidth: 3)
 
         default:
-            Circle()
-                .stroke(Color.accentTeal, lineWidth: 3)
-                .frame(width: buttonSize, height: buttonSize)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.accentTeal, lineWidth: 2)
         }
     }
 
-    private var innerColor: Color {
+    private var fillColor: Color {
         switch appState.state {
-        case .recording: return Color.recordingRed.opacity(0.2)
-        case .transcribing: return Color.processingAmber.opacity(0.15)
-        default: return Color.accentTeal.opacity(0.1)
+        case .recording: return Color.recordingRed.opacity(0.1)
+        case .transcribing: return Color.processingAmber.opacity(0.08)
+        default: return Color.accentTeal.opacity(0.08)
         }
     }
 
     @ViewBuilder
-    private var innerIcon: some View {
+    private var contentView: some View {
         switch appState.state {
         case .recording:
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.recordingRed)
-                .frame(width: 28, height: 28)
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.recordingRed)
+                    .frame(width: 22, height: 22)
+                Text(formatDuration(appState.recordingDuration))
+                    .font(.system(.title3, design: .monospaced))
+                    .foregroundStyle(Color.recordingRed)
+            }
 
         case .transcribing:
-            Image(systemName: "waveform")
-                .font(.title)
-                .foregroundStyle(Color.processingAmber)
+            HStack(spacing: 10) {
+                ProgressView()
+                    .tint(Color.processingAmber)
+                Text("Transcribing...")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.processingAmber)
+            }
 
         default:
             Image(systemName: "mic.fill")
-                .font(.title)
+                .font(.title2)
                 .foregroundStyle(Color.accentTeal)
         }
     }
@@ -137,6 +134,12 @@ struct RecordButton: View {
     private func stopDurationTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
     }
 }
 

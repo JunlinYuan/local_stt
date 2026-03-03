@@ -1,0 +1,48 @@
+name: LocalSTT
+options:
+  bundleIdPrefix: com.localSTT
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  LocalSTTCore:
+    path: .
+
+targets:
+  LocalSTT:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/LocalSTT
+        type: group
+    resources:
+      - path: Resources/vocabulary.txt
+      - path: Resources/Info.plist
+        buildPhase: none
+    dependencies:
+      - package: LocalSTTCore
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.localSTT.app
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_VERSION: "5.9"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  LocalSTTCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/LocalSTTCoreTests
+        type: group
+    dependencies:
+      - package: LocalSTTCore
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: true

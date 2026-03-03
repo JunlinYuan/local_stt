@@ -29,8 +29,9 @@ struct RecordingView: View {
                     )
                     .frame(maxHeight: .infinity)
 
-                    // Status area (error / result / tooShort)
+                    // Status area (error / result / tooShort) — animated for smooth appear/dismiss
                     statusArea
+                        .animation(.easeInOut(duration: 0.2), value: appState.state)
 
                     // Record button (large rectangle)
                     RecordButton()
@@ -50,7 +51,8 @@ struct RecordingView: View {
                 }
                 .frame(maxWidth: 480) // iPad constraint
             }
-            .animation(.easeInOut(duration: 0.3), value: appState.state)
+            // No global animation — state changes (especially ready → recording)
+            // must be instant. Individual views handle their own transitions.
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

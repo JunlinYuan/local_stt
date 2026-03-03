@@ -13,10 +13,12 @@ public final class ReplacementManager: Sendable {
     private let fileURL: URL?
     private let _rules: ManagedRules
 
-    /// Thread-safe wrapper for mutable rules list.
+    /// Thread-safe wrapper for mutable rules list with pre-compiled regex patterns.
     private final class ManagedRules: @unchecked Sendable {
         private let lock = NSLock()
         private var storage: [ReplacementRule] = []
+        /// Pre-compiled regex for each rule (indexed in parallel with storage).
+        private var compiledRegex: [NSRegularExpression?] = []
 
         var value: [ReplacementRule] {
             lock.lock()
@@ -24,10 +26,27 @@ public final class ReplacementManager: Sendable {
             return storage
         }
 
+        var regexPatterns: [NSRegularExpression?] {
+            lock.lock()
+            defer { lock.unlock() }
+            return compiledRegex
+        }
+
+        /// Fetch rules and their pre-compiled regex atomically under a single lock.
+        func valueAndPatterns() -> ([ReplacementRule], [NSRegularExpression?]) {
+            lock.lock()
+            defer { lock.unlock() }
+            return (storage, compiledRegex)
+        }
+
         func set(_ newValue: [ReplacementRule]) {
             lock.lock()
             defer { lock.unlock() }
             storage = newValue
+            compiledRegex = newValue.map { rule in
+                let escaped = NSRegularExpression.escapedPattern(for: rule.from)
+                return try? NSRegularExpression(pattern: "\\b\(escaped)\\b", options: .caseInsensitive)
+            }
         }
     }
 
@@ -151,20 +170,17 @@ public final class ReplacementManager: Sendable {
     /// Apply all replacement rules to text sequentially.
     ///
     /// Matching is case-insensitive and whole-word only (using `\b` word boundaries).
+    /// Uses pre-compiled regex patterns for performance.
     /// Returns original text if disabled or no rules match.
     public func applyReplacements(to text: String) -> String {
         guard isEnabled else { return text }
 
-        let currentRules = rules
+        let (currentRules, patterns) = _rules.valueAndPatterns()
         guard !currentRules.isEmpty, !text.isEmpty else { return text }
 
         var result = text
-        for rule in currentRules {
-            let escaped = NSRegularExpression.escapedPattern(for: rule.from)
-            guard let regex = try? NSRegularExpression(
-                pattern: "\\b\(escaped)\\b",
-                options: .caseInsensitive
-            ) else { continue }
+        for (rule, regex) in zip(currentRules, patterns) {
+            guard let regex else { continue }
 
             let range = NSRange(result.startIndex..., in: result)
             // Escape replacement template — $, \, and & have special meaning in NSRegularExpression

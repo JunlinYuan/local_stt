@@ -152,10 +152,13 @@ final class AppState {
     func startRecording() {
         guard state == .ready || state.isErrorOrResult else { return }
 
+        // Set state FIRST for instant visual feedback — audio setup can take
+        // 50-100ms (AVAudioSession category + activation + engine start).
+        state = .recording
+        recordingDuration = 0
+
         do {
             try recorder.start()
-            state = .recording
-            recordingDuration = 0
         } catch {
             state = .error(error.localizedDescription)
             scheduleErrorReset()
@@ -164,6 +167,12 @@ final class AppState {
 
     func stopRecordingAndTranscribe() {
         guard state == .recording else { return }
+
+        // Guard: if recorder never successfully started, don't attempt stop/transcribe
+        guard recorder.isRecording else {
+            state = .ready
+            return
+        }
 
         let wavData = recorder.stop()
         state = .transcribing
@@ -266,8 +275,11 @@ final class AppState {
     }
 
     private func saveHistory() {
-        if let data = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(data, forKey: Self.historyKey)
+        let snapshot = history
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONEncoder().encode(snapshot) {
+                UserDefaults.standard.set(data, forKey: Self.historyKey)
+            }
         }
     }
 

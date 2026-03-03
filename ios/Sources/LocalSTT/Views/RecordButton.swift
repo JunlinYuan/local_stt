@@ -126,8 +126,10 @@ struct RecordButton: View {
     // MARK: - Duration Timer
 
     private func startDurationTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            appState.recordingDuration += 0.1
+        // 1Hz is sufficient for M:SS display — avoids 10x/sec @Observable invalidation
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            guard case .recording = appState.state else { return }
+            appState.recordingDuration += 1.0
         }
     }
 

@@ -277,13 +277,15 @@ struct MacSettingsView: View {
 
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            do {
-                try data.write(to: url)
-                importExportStatus = "Exported to \(url.lastPathComponent)"
-            } catch {
-                importExportStatus = "Export failed: \(error.localizedDescription)"
+            DispatchQueue.main.async {
+                do {
+                    try data.write(to: url)
+                    importExportStatus = "Exported to \(url.lastPathComponent)"
+                } catch {
+                    importExportStatus = "Export failed: \(error.localizedDescription)"
+                }
+                scheduleStatusClear()
             }
-            scheduleStatusClear()
         }
     }
 
@@ -295,14 +297,16 @@ struct MacSettingsView: View {
 
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            do {
-                let data = try Data(contentsOf: url)
-                let result = appState.importBulkData(data)
-                importExportStatus = result
-            } catch {
-                importExportStatus = "Import failed: \(error.localizedDescription)"
+            DispatchQueue.main.async {
+                do {
+                    let data = try Data(contentsOf: url)
+                    let result = appState.importBulkData(data)
+                    importExportStatus = result
+                } catch {
+                    importExportStatus = "Import failed: \(error.localizedDescription)"
+                }
+                scheduleStatusClear()
             }
-            scheduleStatusClear()
         }
     }
 

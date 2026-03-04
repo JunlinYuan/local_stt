@@ -428,12 +428,13 @@ final class MacAppState {
         if let words = bulk.vocabulary {
             vocabularyManager.setWords(words)
             syncVocabulary()
-            parts.append("\(words.count) vocabulary words")
+            parts.append("\(vocabularyManager.words.count) vocabulary words")
         }
 
         if let replacements = bulk.replacements {
-            // Clear existing rules
-            for rule in replacementManager.rules {
+            // Snapshot for rollback on total failure
+            let existingRules = replacementManager.rules
+            for rule in existingRules {
                 _ = replacementManager.removeRule(rule)
             }
             // Add imported rules
@@ -442,8 +443,17 @@ final class MacAppState {
                 let (success, _) = replacementManager.addRule(from: r.from, to: r.to)
                 if success { added += 1 }
             }
-            syncReplacements()
-            parts.append("\(added) replacement rules")
+            if added == 0 && !replacements.isEmpty {
+                // Rollback: restore original rules
+                for rule in existingRules {
+                    _ = replacementManager.addRule(from: rule.from, to: rule.to)
+                }
+                syncReplacements()
+                parts.append("0 replacement rules (all failed validation, originals restored)")
+            } else {
+                syncReplacements()
+                parts.append("\(added) replacement rules")
+            }
         }
 
         return parts.isEmpty ? "No data found in file" : "Imported \(parts.joined(separator: " and "))"

@@ -45,9 +45,11 @@ final class AutoPasteManager {
     private var lastRaiseTime: Date = .distantPast
     private var lastWindowCheckTime: Date = .distantPast
 
-    /// Apps to exclude from FFM (system UI elements that should never receive auto-paste).
-    /// Finder and LocalSTT itself are intentionally not excluded — they are valid paste targets.
-    private static let excludedApps: Set<String> = [
+    /// Apps to exclude from FFM tracking and raise.
+    /// Finder is excluded from this list (handled by kCGWindowLayer desktop filter instead).
+    /// LocalSTT itself must be excluded to prevent a focus trap in raise_on_hover mode.
+    private static let excludedApps: Set<String> = {
+        var apps: Set<String> = [
         // Core system UI
         "Dock", "Window Server", "Wallpaper",
         // Menu bar / status UI
@@ -65,7 +67,13 @@ final class AutoPasteManager {
         "Open and Save Panel Service", "CursorUIViewService",
         "nsattributedstringagent", "LinkedNotesUIService",
         "ThemeWidgetControlViewService", "Universal Control",
-    ]
+        ]
+        // Exclude our own app to prevent focus trap in raise_on_hover mode
+        if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String {
+            apps.insert(name)
+        }
+        return apps
+    }()
 
     /// Minimum dwell time before raising in hover mode.
     private static let hoverDwellTime: TimeInterval = 0.05

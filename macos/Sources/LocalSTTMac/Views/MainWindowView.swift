@@ -69,6 +69,15 @@ struct MainWindowView: View {
         .onDisappear {
             removeKeyMonitor()
         }
+        // Prevent search field from auto-focusing when the app activates (e.g. via FFM hover).
+        // Without this, hovering over LocalSTT's window steals keyboard focus to the search
+        // field. Uses didBecomeActiveNotification (not didBecomeKey) so it only fires when
+        // switching FROM another app, not when clicking within LocalSTT's own windows.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
+        }
         .sheet(isPresented: $showVocabPanel) {
             MacVocabularyView()
                 .environment(appState)

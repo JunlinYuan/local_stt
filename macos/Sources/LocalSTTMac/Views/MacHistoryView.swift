@@ -122,6 +122,15 @@ struct MacHistoryView: View {
                         .font(.caption)
                         .foregroundStyle(Color.textMuted)
 
+                    if let gain = item.formattedGain {
+                        Text(gain)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Color.processingAmber)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.processingAmber.opacity(0.15), in: Capsule())
+                    }
+
                     Spacer()
 
                     // "Copied!" badge (instant flash)

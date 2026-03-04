@@ -8,6 +8,7 @@ public struct TranscriptionResult: Identifiable, Codable, Sendable {
     public let duration: TimeInterval
     public let processingTime: TimeInterval
     public let timestamp: Date
+    public let gainDB: Double?
 
     public init(
         id: UUID = UUID(),
@@ -15,7 +16,8 @@ public struct TranscriptionResult: Identifiable, Codable, Sendable {
         language: String,
         duration: TimeInterval,
         processingTime: TimeInterval,
-        timestamp: Date = Date()
+        timestamp: Date = Date(),
+        gainDB: Double? = nil
     ) {
         self.id = id
         self.text = text
@@ -23,6 +25,13 @@ public struct TranscriptionResult: Identifiable, Codable, Sendable {
         self.duration = duration
         self.processingTime = processingTime
         self.timestamp = timestamp
+        self.gainDB = gainDB
+    }
+
+    /// Formatted gain string like "+13.5dB" or "-2.1dB". Nil if not normalized or trivial gain.
+    public var formattedGain: String? {
+        guard let db = gainDB, abs(db) >= 1.0 else { return nil }
+        return String(format: "%+.1fdB", db)
     }
 
     /// Duration formatted as "Xs" or "M:SS".

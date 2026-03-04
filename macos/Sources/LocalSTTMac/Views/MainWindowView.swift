@@ -401,6 +401,11 @@ struct MainWindowView: View {
                 Text(appState.ffmEnabled ? "Pasted to target window" : "Copied to clipboard")
                     .font(.caption)
                     .foregroundStyle(Color.accentTeal)
+                if let db = appState.lastNormalizationGainDB, abs(db) >= 1.0 {
+                    Text(String(format: "· %+.1fdB", db))
+                        .font(.caption)
+                        .foregroundStyle(Color.processingAmber)
+                }
             }
             .padding(.bottom, 4)
 

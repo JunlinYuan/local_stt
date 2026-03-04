@@ -89,12 +89,20 @@ final class MacAppState {
         didSet { UserDefaults.standard.set(pasteDelay, forKey: "paste_delay") }
     }
 
+    var volumeNormalization: Bool {
+        didSet { UserDefaults.standard.set(volumeNormalization, forKey: "volume_normalization") }
+    }
+
     // MARK: - Observable Mirrors
 
     var vocabularyWords: [String] = []
     var vocabularyUsageCounts: [String: Int] = [:]
     var replacementRules: [ReplacementRule] = []
     var replacementsEnabled: Bool = true
+
+    // MARK: - Transient State
+
+    var lastNormalizationGainDB: Double? = nil
 
     // MARK: - History
 
@@ -113,6 +121,7 @@ final class MacAppState {
         self.ffmMode = UserDefaults.standard.string(forKey: "ffm_mode") ?? "track_only"
         self.clipboardSyncDelay = UserDefaults.standard.object(forKey: "clipboard_sync_delay") as? Double ?? 0.05
         self.pasteDelay = UserDefaults.standard.object(forKey: "paste_delay") as? Double ?? 0.05
+        self.volumeNormalization = UserDefaults.standard.object(forKey: "volume_normalization") as? Bool ?? true
 
         // Initialize vocabulary manager
         let bundledVocab = Bundle.main.url(forResource: "vocabulary", withExtension: "txt")
@@ -244,7 +253,7 @@ final class MacAppState {
             return
         }
 
-        let wavData = recorder.stop()
+        let rawWavData = recorder.stop()
         state = .transcribing
 
         guard let service = groqService else {
@@ -253,11 +262,22 @@ final class MacAppState {
             return
         }
 
-        if WAVEncoder.estimateDuration(from: wavData) < minRecordingDuration {
+        if WAVEncoder.estimateDuration(from: rawWavData) < minRecordingDuration {
             state = .tooShort
             scheduleErrorReset()
             return
         }
+
+        // Normalize volume if enabled
+        var wavData = rawWavData
+        var normGainDB: Double? = nil
+        if volumeNormalization {
+            let normResult = AudioNormalizer.normalize(wavData: rawWavData)
+            wavData = normResult.wavData
+            normGainDB = abs(normResult.gainDB) >= 1.0 ? normResult.gainDB : nil
+            logger.info("Volume normalization: RMS \(normResult.originalRMS, format: .fixed(precision: 0)) → \(normResult.processedRMS, format: .fixed(precision: 0)), gain \(normResult.gainDB, format: .fixed(precision: 1))dB")
+        }
+        lastNormalizationGainDB = normGainDB
 
         Task { @MainActor in
             do {
@@ -290,13 +310,14 @@ final class MacAppState {
                     finalText += " "
                 }
 
-                if finalText != result.text {
+                if finalText != result.text || normGainDB != nil {
                     result = TranscriptionResult(
                         text: finalText,
                         language: result.language,
                         duration: result.duration,
                         processingTime: result.processingTime,
-                        timestamp: result.timestamp
+                        timestamp: result.timestamp,
+                        gainDB: normGainDB
                     )
                 }
 

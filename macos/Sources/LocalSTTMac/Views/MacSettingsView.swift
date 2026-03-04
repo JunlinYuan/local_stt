@@ -53,6 +53,16 @@ struct MacSettingsView: View {
                 .pickerStyle(.segmented)
             }
 
+            Section("Audio") {
+                Toggle("Volume normalization", isOn: Binding(
+                    get: { appState.volumeNormalization },
+                    set: { appState.volumeNormalization = $0 }
+                ))
+                Text("Boost quiet recordings for better transcription accuracy. Normalizes to a target RMS level before sending to Groq.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Launch") {
                 let canRegister = SMAppService.mainApp.status != .notFound
                 Toggle("Launch at login", isOn: Binding(

@@ -6,90 +6,124 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Speech-to-text application with push-to-talk interface. Supports local processing (lightning-whisper-mlx on Apple Silicon) and cloud APIs (OpenAI, Groq). Features global hotkey recording, auto-paste to window under mouse cursor.
+Multi-platform speech-to-text application with three implementations:
+- **Web** — Vanilla JS frontend + Python FastAPI backend (local/OpenAI/Groq STT)
+- **macOS** — Native SwiftUI menu bar app, calls Groq API directly via LocalSTTCore
+- **iOS** — Native SwiftUI app, calls Groq API directly via LocalSTTCore
+
+The web version supports local processing (lightning-whisper-mlx) and multiple cloud APIs. The native apps are pure SwiftUI and require no backend — they share code via the LocalSTTCore Swift package.
 
 ## Commands
 
 ```bash
-# Start (server + global hotkey client)
+# Web: Start server + global hotkey client
 ./start.sh
 
-# Lint
+# Web: Lint / Format
 cd backend && uv run ruff check .
-
-# Format
 cd backend && uv run ruff format .
+
+# macOS app: Build
+cd macos && xcodegen generate && xcodebuild -scheme LocalSTTMac build
+
+# macOS app: Install to /Applications
+cp -R ~/Library/Developer/Xcode/DerivedData/LocalSTTMac-*/Build/Products/Debug/LocalSTTMac.app /Applications/
+
+# iOS app: Build
+cd ios && xcodegen generate && xcodebuild -scheme LocalSTT build
 ```
 
 ## Architecture
 
 ```
-Frontend (vanilla JS) ──WebSocket──▶  FastAPI Backend ──▶ STT Provider
-     │                                     │                   │
-     ├─ Hotkey detection                   ├─ /ws endpoint     ├─ Local (MLX)
-     ├─ WebAudio → WAV                     ├─ /api/transcribe  ├─ OpenAI API
-     └─ Waveform viz                       └─ /api/settings    └─ Groq API
-                                                  ▲
-Global Hotkey Client ─────────HTTP POST───────────┘
-     │
-     ├─ System-wide pynput hotkey
-     ├─ sounddevice recording
-     ├─ Mouse tracking for targeted paste (toggleable)
-     └─ Auto-paste to window under cursor + clipboard restore
+┌── Web (Python backend) ──────────────────┬── Native Apps (SwiftUI) ──────────────┐
+│                                          │                                       │
+│ Frontend (vanilla JS)                    │  LocalSTTCore (shared Swift package)   │
+│   ├─ Hotkey detection                    │    ├─ GroqService                      │
+│   ├─ WebAudio → WAV                      │    ├─ VocabularyManager                │
+│   └─ Waveform viz                        │    ├─ ReplacementManager               │
+│         │ WebSocket                      │    ├─ HallucinationFilter              │
+│         ▼                                │    ├─ WAVEncoder                        │
+│ FastAPI Backend ──▶ STT Provider         │    └─ KeychainHelper                   │
+│   ├─ /ws, /api/transcribe               │         │                              │
+│   └─ /api/settings                       │    ┌────┴────┐                         │
+│         ▲                                │    │         │                         │
+│ Global Hotkey Client (Python)            │  iOS App  macOS App                    │
+│   ├─ pynput hotkey                       │  SwiftUI  SwiftUI + MenuBarExtra       │
+│   ├─ sounddevice recording               │           + GlobalHotkeyManager        │
+│   └─ Auto-paste (FFM)                    │           + AutoPasteManager (FFM)     │
+└──────────────────────────────────────────┴───────────────────────────────────────┘
 ```
-
-**Key Flow:**
-1. User holds hotkey (Ctrl, Ctrl+Cmd, or Shift+Cmd) → records audio
-2. On release, audio converted to WAV and sent to backend
-3. Backend routes to configured STT provider (local/OpenAI/Groq)
-4. Result JSON returned with text, language, duration, processing_time
-5. Global client: auto-pastes to window under mouse (without raising it), restores clipboard
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
+| **Web Backend** | |
 | `backend/main.py` | FastAPI app, WebSocket handler, HTTP transcribe API |
 | `backend/stt_engine.py` | Local Whisper model wrapper, transcription routing |
 | `backend/openai_stt.py` | OpenAI Whisper API client |
 | `backend/groq_stt.py` | Groq Whisper API client (fast, cheap) |
-| `backend/settings.py` | Schema-driven settings system (add new settings here) |
+| `backend/settings.py` | Schema-driven settings system (17 settings) |
 | `backend/vocabulary.py` | Vocabulary manager with file watcher |
-| `backend/vocabulary.txt` | Custom vocabulary words (auto-reloads) |
 | `backend/hotkey_client.py` | Global hotkey daemon, audio recording, clipboard |
 | `frontend/app.js` | Key detection, audio recording, WebSocket client |
+| **Shared Swift Package** | |
+| `ios/Package.swift` | LocalSTTCore package definition (macOS 14+, iOS 17+) |
+| `ios/Sources/LocalSTTCore/` | 8 shared modules: GroqService, VocabularyManager, ReplacementManager, HallucinationFilter, WAVEncoder, KeychainHelper, TranscriptionResult, ReplacementRule |
+| **macOS App** | |
+| `macos/project.yml` | xcodegen config (references `../ios` for LocalSTTCore) |
+| `macos/Sources/LocalSTTMac/MacAppState.swift` | State manager, recording lifecycle, bulk export/import |
+| `macos/Sources/LocalSTTMac/Views/MainWindowView.swift` | Main window with keyboard shortcuts (NSEvent local monitor) |
+| `macos/Sources/LocalSTTMac/Services/AutoPasteManager.swift` | FFM: mouse tracking, window detection, CGEvent paste |
+| `macos/Sources/LocalSTTMac/Services/GlobalHotkeyManager.swift` | NSEvent global/local monitors, Left Control (keyCode 59) |
+| **iOS App** | |
+| `ios/project.yml` | xcodegen config for iOS app |
+| `ios/Sources/LocalSTT/` | iOS SwiftUI views, AppState, AudioRecorder |
+| **Docs** | |
 | `docs/prd.md` | Full requirements and technical decisions |
 | `docs/learnings.md` | Model comparison research, optimization notes |
-| `.env.example` | Template for API keys (copy to `.env`) |
 
 ## Configuration
 
-Settings stored in `backend/settings.json`, managed via web UI or API.
+### Web Backend Settings
 
-**To add a new setting:** Add entry to `SETTINGS_SCHEMA` in `settings.py` with `default`, `type`, and optional `options`/`min`/`max`. API and UI handle it automatically.
+Stored in `backend/settings.json`, managed via web UI or API. **To add a setting:** add to `SETTINGS_SCHEMA` in `settings.py`.
 
-**Current settings:** (see `SETTINGS_SCHEMA` in `settings.py` for full list)
+**Current settings** (see `SETTINGS_SCHEMA` for full list of 17):
 - `stt_provider`: `"local"`, `"openai"`, or `"groq"` (fastest)
 - `language`: `""` (auto-detect), `"en"`, `"fr"`, `"zh"`, `"ja"`
 - `keybinding`: `"ctrl_only"`, `"ctrl"` (+Cmd), or `"shift"` (+Cmd)
-- `ffm_enabled`: Mouse tracking for targeted paste (default: true)
-- `max_recording_duration`: Safety timeout in seconds (default: 240)
-- `min_recording_duration`: Skip accidental taps (default: 0.3s)
-- `min_volume_rms`: Skip silent recordings (default: 100, 0=disabled)
-- `volume_normalization`: Boost quiet / limit loud audio (default: true)
-- `content_filter`: Filter misrecognized profanity (default: true)
+- `ffm_enabled` / `ffm_mode`: Mouse tracking + raise mode (`track_only`, `raise_on_hover`)
+- `clipboard_sync_delay` / `paste_delay`: Timing for clipboard operations (default: 0.05s)
+- `replacements_enabled`: Apply word replacement rules (default: true)
+- `max_recording_duration` / `min_recording_duration` / `min_volume_rms`
+- `volume_normalization` / `content_filter` / `silence_padding`
+- `save_debug_audio` / `short_clip_language_override` / `short_clip_vocab_limit`
 
-**Fixed config (in code):**
-- Local model: `large-v3`
-- Groq model: `whisper-large-v3-turbo`
-- Vocabulary: Edit `backend/vocabulary.txt` (auto-reloads) or use web UI
+### Native App Settings
 
-**Environment:**
+macOS/iOS settings stored in UserDefaults (language, FFM mode, timing delays). API key in shared Keychain (`com.localSTT.app`).
+
+### Environment Variables
+
 - `OPENAI_API_KEY`: Required for OpenAI provider (from .env or shell)
 - `GROQ_API_KEY`: Required for Groq provider (get from https://console.groq.com)
 
+## macOS App Notes
+
+- **Build system:** xcodegen → Xcode project. Always run `xcodegen generate` before building.
+- **Hardened Runtime:** DISABLED (`ENABLE_HARDENED_RUNTIME: NO`) — required for CGEvent.post()
+- **Code signing:** `CODE_SIGN_IDENTITY: "Apple Development"` (not ad-hoc) for stable TCC hash
+- **FFM excluded apps:** Self-excluded to prevent focus trap in raise_on_hover mode. Finder allowed via `kCGWindowLayer` desktop filter.
+- **Keyboard shortcuts:** `/` (search), `Esc` (close/clear), `A/E/F/C/J` (language), `V` (vocab), `R` (replace). Only active when no text field focused.
+- **Bulk export/import:** Settings > Data section. JSON format with `vocabulary` and `replacements` arrays.
+- **Logging:** `log stream --predicate 'subsystem == "com.localSTT.mac"' --level debug`
+
 ## Usage
 
-Run `./start.sh` to start both server and global hotkey client. Opens web UI automatically.
+**Web:** Run `./start.sh` to start both server and global hotkey client. Opens web UI automatically. Global hotkey requires macOS Accessibility permissions for your terminal app.
 
-Note: Global hotkey requires macOS Accessibility permissions for your terminal app.
+**macOS App:** Install to /Applications and launch. Grant Accessibility + Input Monitoring permissions in System Settings. Hold Left Control to record.
+
+**iOS App:** Build and install via Xcode. Add Groq API key in settings. Hold the record button to transcribe.

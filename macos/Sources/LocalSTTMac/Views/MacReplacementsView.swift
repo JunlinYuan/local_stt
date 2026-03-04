@@ -6,6 +6,7 @@ struct MacReplacementsView: View {
     @Environment(MacAppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    @Binding var selectedIndex: Int?
     @State private var fromText = ""
     @State private var toText = ""
     @State private var errorMessage: String?
@@ -49,6 +50,7 @@ struct MacReplacementsView: View {
                 TextField("To...", text: $toText)
                     .textFieldStyle(.plain)
                     .frame(maxWidth: .infinity)
+                    .onSubmit { addRule() }
 
                 Button {
                     addRule()
@@ -88,7 +90,7 @@ struct MacReplacementsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(appState.replacementRules) { rule in
+                    ForEach(Array(appState.replacementRules.enumerated()), id: \.element.id) { index, rule in
                         HStack {
                             Text(rule.from)
                                 .font(.body)
@@ -113,6 +115,11 @@ struct MacReplacementsView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        .listRowBackground(
+                            index == selectedIndex
+                                ? Color.accentTeal.opacity(0.15)
+                                : Color.clear
+                        )
                     }
                 }
                 .listStyle(.plain)
@@ -125,6 +132,9 @@ struct MacReplacementsView: View {
                     .font(.caption)
                     .foregroundStyle(Color.textMuted)
                 Spacer()
+                Text("J/K navigate · D delete · Esc close")
+                    .font(.caption2)
+                    .foregroundStyle(Color.textMuted.opacity(0.5))
             }
             .padding(.horizontal)
             .padding(.vertical, 8)

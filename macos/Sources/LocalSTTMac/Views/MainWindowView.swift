@@ -10,6 +10,11 @@ struct MainWindowView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var keyMonitor: Any?
 
+    // Keyboard navigation state
+    @State private var selectedIndex: Int?
+    @State private var copiedID: UUID?
+    @State private var sheetSelectedIndex: Int?
+
     var body: some View {
         ZStack {
             Color.appBackground.ignoresSafeArea()
@@ -25,7 +30,9 @@ struct MainWindowView: View {
                     items: appState.history,
                     highlightedID: latestResultID,
                     searchText: $searchText,
-                    isSearchFocused: $isSearchFocused
+                    isSearchFocused: $isSearchFocused,
+                    selectedIndex: $selectedIndex,
+                    copiedID: $copiedID
                 )
                 .frame(maxHeight: .infinity)
 
@@ -79,14 +86,23 @@ struct MainWindowView: View {
             }
         }
         .sheet(isPresented: $showVocabPanel) {
-            MacVocabularyView()
+            MacVocabularyView(selectedIndex: $sheetSelectedIndex)
                 .environment(appState)
                 .frame(minWidth: 400, minHeight: 400)
         }
         .sheet(isPresented: $showReplacePanel) {
-            MacReplacementsView()
+            MacReplacementsView(selectedIndex: $sheetSelectedIndex)
                 .environment(appState)
                 .frame(minWidth: 400, minHeight: 400)
+        }
+        .onChange(of: showVocabPanel) { _, isOpen in
+            if isOpen { sheetSelectedIndex = nil }
+        }
+        .onChange(of: showReplacePanel) { _, isOpen in
+            if isOpen { sheetSelectedIndex = nil }
+        }
+        .onChange(of: searchText) { _, _ in
+            selectedIndex = nil
         }
     }
 
@@ -106,6 +122,13 @@ struct MainWindowView: View {
         }
     }
 
+    // MARK: - Filtered History
+
+    private var filteredHistory: [TranscriptionResult] {
+        guard !searchText.isEmpty else { return appState.history }
+        return appState.history.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
+    }
+
     /// Handle a key event. Returns `true` if consumed (swallowed), `false` to pass through.
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
         // Skip events with Cmd/Option/Control modifiers — those are system shortcuts
@@ -119,8 +142,14 @@ struct MainWindowView: View {
         // Check if a text field is focused (typing in search, sheets, etc.)
         let isTextFieldActive = NSApp.keyWindow?.firstResponder is NSText
 
-        // Esc always handled (priority chain: close sheet → clear search → unfocus search)
+        // --- Esc priority chain ---
         if event.keyCode == 53 { // Esc
+            // 1. Sheet text field active → unfocus (enter sheet nav mode)
+            if (showVocabPanel || showReplacePanel) && isTextFieldActive {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+                return true
+            }
+            // 2. Sheet open → close sheet
             if showVocabPanel {
                 showVocabPanel = false
                 return true
@@ -129,10 +158,17 @@ struct MainWindowView: View {
                 showReplacePanel = false
                 return true
             }
+            // 3. selectedIndex set → clear selection
+            if selectedIndex != nil {
+                selectedIndex = nil
+                return true
+            }
+            // 4. searchText non-empty → clear search
             if !searchText.isEmpty {
                 searchText = ""
                 return true
             }
+            // 5. search focused → unfocus
             if isSearchFocused {
                 isSearchFocused = false
                 return true
@@ -140,26 +176,85 @@ struct MainWindowView: View {
             return false
         }
 
+        // --- Enter: copy selected/first item ---
+        if event.keyCode == 36 { // Enter/Return
+            // In search field: copy first result, unfocus, select index 0
+            if isSearchFocused && !filteredHistory.isEmpty {
+                copyHistoryItem(at: 0)
+                isSearchFocused = false
+                selectedIndex = 0
+                return true
+            }
+            // With selection in main view (no sheet): copy selected history item
+            if !showVocabPanel && !showReplacePanel,
+               let idx = selectedIndex, idx < filteredHistory.count {
+                copyHistoryItem(at: idx)
+                return true
+            }
+            return false
+        }
+
+        // --- Sheet keyboard navigation (j/k/d/x) ---
+        if (showVocabPanel || showReplacePanel) && !isTextFieldActive {
+            switch key {
+            case "j":
+                let count = showVocabPanel ? appState.vocabularyWords.count : appState.replacementRules.count
+                if count > 0 {
+                    let current = sheetSelectedIndex ?? -1
+                    sheetSelectedIndex = min(current + 1, count - 1)
+                }
+                return true
+            case "k":
+                if let current = sheetSelectedIndex, current > 0 {
+                    sheetSelectedIndex = current - 1
+                }
+                return true
+            case "d", "x":
+                if let idx = sheetSelectedIndex {
+                    deleteSheetItem(at: idx)
+                }
+                return true
+            default: break
+            }
+            return false
+        }
+
         // "/" focuses search — standard vim-style trigger
         if key == "/" && !isTextFieldActive && !showVocabPanel && !showReplacePanel {
             isSearchFocused = true
+            selectedIndex = nil
             return true
         }
 
-        // All remaining shortcuts require: no text field focused, no sheet open, not recording
+        // All remaining shortcuts require: no text field focused, no sheet open
         guard !isTextFieldActive,
               !showVocabPanel,
               !showReplacePanel
         else { return false }
 
-        // Language shortcuts (also require not recording/transcribing)
+        // j/k: navigate history
+        switch key {
+        case "j":
+            if !filteredHistory.isEmpty {
+                let current = selectedIndex ?? -1
+                selectedIndex = min(current + 1, filteredHistory.count - 1)
+            }
+            return true
+        case "k":
+            if let current = selectedIndex, current > 0 {
+                selectedIndex = current - 1
+            }
+            return true
+        default: break
+        }
+
+        // Language shortcuts (j removed — use JA button; also require not recording/transcribing)
         if !appState.state.isRecordingOrTranscribing {
             switch key {
             case "a": appState.language = ""; return true
             case "e": appState.language = "en"; return true
             case "f": appState.language = "fr"; return true
             case "c": appState.language = "zh"; return true
-            case "j": appState.language = "ja"; return true
             default: break
             }
         }
@@ -172,6 +267,47 @@ struct MainWindowView: View {
         }
 
         return false
+    }
+
+    // MARK: - Copy & Delete Helpers
+
+    private func copyHistoryItem(at index: Int) {
+        guard index < filteredHistory.count else { return }
+        let item = filteredHistory[index]
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(item.text, forType: .string)
+        copiedID = item.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeOut(duration: 0.15)) {
+                if copiedID == item.id { copiedID = nil }
+            }
+        }
+    }
+
+    private func deleteSheetItem(at index: Int) {
+        if showVocabPanel {
+            let words = appState.vocabularyWords
+            guard index < words.count else { return }
+            _ = appState.vocabularyManager.removeWord(words[index])
+            appState.syncVocabulary()
+            // Adjust selection
+            if appState.vocabularyWords.isEmpty {
+                sheetSelectedIndex = nil
+            } else if index >= appState.vocabularyWords.count {
+                sheetSelectedIndex = appState.vocabularyWords.count - 1
+            }
+        } else if showReplacePanel {
+            let rules = appState.replacementRules
+            guard index < rules.count else { return }
+            _ = appState.replacementManager.removeRule(rules[index])
+            appState.syncReplacements()
+            // Adjust selection
+            if appState.replacementRules.isEmpty {
+                sheetSelectedIndex = nil
+            } else if index >= appState.replacementRules.count {
+                sheetSelectedIndex = appState.replacementRules.count - 1
+            }
+        }
     }
 
     // MARK: - Language Bar

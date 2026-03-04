@@ -2,9 +2,10 @@ import AppKit
 import SwiftUI
 import LocalSTTCore
 
-/// Scrollable history list with search and text highlighting for macOS.
+/// Scrollable history list with search, keyboard selection, and text highlighting for macOS.
 ///
-/// Tapping any row copies its text to clipboard.
+/// Tapping any row or pressing Enter on a selected row copies its text to clipboard.
+/// Keyboard: `/` search, `j`/`k` navigate, Enter copies, Esc clears selection.
 struct MacHistoryView: View {
     @Environment(MacAppState.self) private var appState
 
@@ -15,8 +16,9 @@ struct MacHistoryView: View {
     @Binding var searchText: String
     var isSearchFocused: FocusState<Bool>.Binding
 
-    @State private var copiedID: UUID?
-    @State private var sweepProgress: [UUID: CGFloat] = [:]
+    /// Keyboard selection and copy feedback, owned by MainWindowView.
+    @Binding var selectedIndex: Int?
+    @Binding var copiedID: UUID?
 
     private var filteredItems: [TranscriptionResult] {
         guard !searchText.isEmpty else { return items }
@@ -50,8 +52,8 @@ struct MacHistoryView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 6) {
-                    ForEach(filteredItems) { item in
-                        historyRow(item)
+                    ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
+                        historyRow(item, isSelected: index == selectedIndex)
                             .id(item.id)
                             .padding(.horizontal, 12)
                             .onTapGesture { copyToClipboard(item) }
@@ -65,18 +67,23 @@ struct MacHistoryView: View {
                     proxy.scrollTo(id, anchor: .top)
                 }
             }
+            .onChange(of: selectedIndex) { _, newIndex in
+                guard let idx = newIndex, idx < filteredItems.count else { return }
+                withAnimation(.easeOut(duration: 0.15)) {
+                    proxy.scrollTo(filteredItems[idx].id, anchor: .center)
+                }
+            }
         }
     }
 
     // MARK: - Row
 
-    private func historyRow(_ item: TranscriptionResult) -> some View {
+    private func historyRow(_ item: TranscriptionResult, isSelected: Bool = false) -> some View {
         let isCopied = copiedID == item.id
-        let sweep = sweepProgress[item.id] ?? 0
 
         return HStack(spacing: 0) {
-            // Teal left accent for highlighted item
-            if item.id == highlightedID {
+            // Teal left accent for highlighted (latest transcription) or keyboard-selected item
+            if item.id == highlightedID || isSelected {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.accentTeal)
                     .frame(width: 3)
@@ -117,7 +124,7 @@ struct MacHistoryView: View {
 
                     Spacer()
 
-                    // "Copied!" badge during sweep
+                    // "Copied!" badge (instant flash)
                     if isCopied {
                         Text("Copied!")
                             .font(.caption2.weight(.medium))
@@ -139,21 +146,18 @@ struct MacHistoryView: View {
             }
         }
         .padding(10)
-        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            // Sweep overlay: teal highlight sweeps left-to-right on copy
-            GeometryReader { geo in
-                Color.accentTeal.opacity(0.12)
-                    .frame(width: geo.size.width * sweep)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .opacity(isCopied ? 1 : 0)
+        .background(
+            isCopied ? Color.accentTeal.opacity(0.15)
+            : isSelected ? Color.accentTeal.opacity(0.08)
+            : Color.appSurface,
+            in: RoundedRectangle(cornerRadius: 8)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
-                    isCopied ? Color.accentTeal.opacity(0.3) : Color.appBorder,
+                    isCopied ? Color.accentTeal.opacity(0.3)
+                    : isSelected ? Color.accentTeal.opacity(0.2)
+                    : Color.appBorder,
                     lineWidth: 1
                 )
         )
@@ -166,20 +170,15 @@ struct MacHistoryView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(item.text, forType: .string)
 
-        // Start sweep animation
-        sweepProgress[item.id] = 0
-        withAnimation(.easeInOut(duration: 0.2)) {
-            copiedID = item.id
-        }
-        withAnimation(.easeOut(duration: 0.4)) {
-            sweepProgress[item.id] = 1
-        }
+        // Instant highlight — no sweep, just flash
+        copiedID = item.id
 
-        // Fade out after sweep completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            withAnimation(.easeOut(duration: 0.3)) {
-                copiedID = nil
-                sweepProgress[item.id] = nil
+        // Quick fade out
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeOut(duration: 0.15)) {
+                if copiedID == item.id {
+                    copiedID = nil
+                }
             }
         }
     }

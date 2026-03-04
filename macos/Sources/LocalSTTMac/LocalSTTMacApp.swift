@@ -49,7 +49,7 @@ struct LocalSTTMacApp: App {
             MenuBarView()
                 .environment(appState)
         } label: {
-            Image(systemName: menuBarIcon)
+            menuBarLabel
         }
         .menuBarExtraStyle(.window)
 
@@ -60,11 +60,15 @@ struct LocalSTTMacApp: App {
         }
     }
 
-    private var menuBarIcon: String {
+    @ViewBuilder
+    private var menuBarLabel: some View {
         switch appState.state {
-        case .recording: return "mic.fill"
-        case .transcribing: return "ellipsis.circle"
-        default: return "mic"
+        case .recording:
+            Image(nsImage: MenuBarIcon.recording())
+        case .transcribing:
+            Image(systemName: "ellipsis.circle")
+        default:
+            Image(nsImage: MenuBarIcon.idle())
         }
     }
 }

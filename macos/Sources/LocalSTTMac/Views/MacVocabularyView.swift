@@ -6,6 +6,7 @@ struct MacVocabularyView: View {
     @Environment(MacAppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    @Binding var selectedIndex: Int?
     @State private var newWord = ""
     @State private var errorMessage: String?
 
@@ -63,7 +64,7 @@ struct MacVocabularyView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(appState.vocabularyWords, id: \.self) { word in
+                    ForEach(Array(appState.vocabularyWords.enumerated()), id: \.element) { index, word in
                         HStack {
                             Text(word)
                                 .font(.body)
@@ -90,6 +91,11 @@ struct MacVocabularyView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        .listRowBackground(
+                            index == selectedIndex
+                                ? Color.accentTeal.opacity(0.15)
+                                : Color.clear
+                        )
                     }
                 }
                 .listStyle(.plain)
@@ -102,6 +108,9 @@ struct MacVocabularyView: View {
                     .font(.caption)
                     .foregroundStyle(Color.textMuted)
                 Spacer()
+                Text("J/K navigate · D delete · Esc close")
+                    .font(.caption2)
+                    .foregroundStyle(Color.textMuted.opacity(0.5))
             }
             .padding(.horizontal)
             .padding(.vertical, 8)

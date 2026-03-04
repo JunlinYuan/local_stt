@@ -25,10 +25,12 @@
 		BC64FCEFBD5D64DB02C2D8E9 /* MacAppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6515D58D510B9875098B38E0 /* MacAppState.swift */; };
 		BE4035B47DD70847336DFC2C /* replacements.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D3DE4A5FB34E6571CF7623C /* replacements.json */; };
 		D0825BC83155D604945B1692 /* GlobalHotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0D4F946E5324D59273F6E0 /* GlobalHotkeyManager.swift */; };
+		E95E478B276E900F675210AC /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002EFCCADC8EF4C503C58E2B /* MenuBarIcon.swift */; };
 		F7915C6B8723CA77A5D7FC26 /* MacReplacementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F8DD8510E95F80DB2CB69D /* MacReplacementsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		002EFCCADC8EF4C503C58E2B /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		00F8DD8510E95F80DB2CB69D /* MacReplacementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacReplacementsView.swift; sourceTree = "<group>"; };
 		2DD970CFF003B4B64B93C5F6 /* MacRecordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacRecordButton.swift; sourceTree = "<group>"; };
 		2F9A6B8A4BBCA0A4621928EE /* MacVocabularyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacVocabularyView.swift; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 			isa = PBXGroup;
 			children = (
 				FF300447C762D3584C00ECD3 /* Color+Hex.swift */,
+				002EFCCADC8EF4C503C58E2B /* MenuBarIcon.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -245,6 +248,7 @@
 				91C68E200E751578A34EDFF9 /* MacVocabularyView.swift in Sources */,
 				BC3AA34E7F36AE8B9D697FF1 /* MacWaveformView.swift in Sources */,
 				6F22991580BFEC8914E48377 /* MainWindowView.swift in Sources */,
+				E95E478B276E900F675210AC /* MenuBarIcon.swift in Sources */,
 				A98FFFE008FB987AAA0452C0 /* MenuBarView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

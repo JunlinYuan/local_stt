@@ -10,6 +10,7 @@ struct MacSettingsView: View {
     @State private var showAPIKey = false
     @State private var isTesting = false
     @State private var testResult: Bool?
+    @State private var importExportStatus: String?
 
     var body: some View {
         TabView {
@@ -28,7 +29,7 @@ struct MacSettingsView: View {
                     Label("Auto-Paste", systemImage: "cursorarrow.click.2")
                 }
         }
-        .frame(width: 450, height: 320)
+        .frame(width: 450, height: 400)
         .onAppear {
             apiKey = appState.getAPIKey()
         }
@@ -47,6 +48,7 @@ struct MacSettingsView: View {
                     Text("English").tag("en")
                     Text("French").tag("fr")
                     Text("Chinese").tag("zh")
+                    Text("Japanese").tag("ja")
                 }
                 .pickerStyle(.segmented)
             }
@@ -74,6 +76,28 @@ struct MacSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Data") {
+                HStack {
+                    Button("Export Vocab & Rules") {
+                        exportData()
+                    }
+
+                    Button("Import Vocab & Rules") {
+                        importData()
+                    }
+                }
+
+                if let status = importExportStatus {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Export or import vocabulary words and replacement rules as a JSON file.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Permissions") {
@@ -236,6 +260,57 @@ struct MacSettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    // MARK: - Data Export / Import
+
+    private func exportData() {
+        guard let data = appState.exportBulkData() else {
+            importExportStatus = "Failed to generate export data"
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "localSTT-data.json"
+        panel.title = "Export Vocabulary & Replacement Rules"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url)
+                importExportStatus = "Exported to \(url.lastPathComponent)"
+            } catch {
+                importExportStatus = "Export failed: \(error.localizedDescription)"
+            }
+            scheduleStatusClear()
+        }
+    }
+
+    private func importData() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.title = "Import Vocabulary & Replacement Rules"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                let data = try Data(contentsOf: url)
+                let result = appState.importBulkData(data)
+                importExportStatus = result
+            } catch {
+                importExportStatus = "Import failed: \(error.localizedDescription)"
+            }
+            scheduleStatusClear()
+        }
+    }
+
+    private func scheduleStatusClear() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            importExportStatus = nil
+        }
     }
 
     // MARK: - Actions

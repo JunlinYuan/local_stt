@@ -17,6 +17,8 @@ targets:
     sources:
       - path: Sources/LocalSTTMac
         type: group
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
       - path: Resources/vocabulary.txt
         buildPhase: resources
       - path: Resources/vocabulary_usage.json
@@ -35,6 +37,7 @@ targets:
         SWIFT_VERSION: "5.9"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         CODE_SIGN_ENTITLEMENTS: Resources/LocalSTTMac.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Hardened Runtime must be OFF for CGEvent.post() to work (accessibility simulation)
         ENABLE_HARDENED_RUNTIME: NO
         # Use "Apple Development" for a stable TCC code-requirement hash across rebuilds.

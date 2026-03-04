@@ -45,33 +45,27 @@ final class AutoPasteManager {
     private var lastRaiseTime: Date = .distantPast
     private var lastWindowCheckTime: Date = .distantPast
 
-    /// Apps to exclude from FFM (system UI elements + our own app).
-    /// Uses CFBundleName dynamically so this is correct regardless of binary name.
-    private static let excludedApps: Set<String> = {
-        var apps: Set<String> = [
-            // Core system UI
-            "Dock", "Finder", "Window Server", "Wallpaper",
-            // Menu bar / status UI
-            "Control Center", "Notification Center", "SystemUIServer",
-            "TextInputMenuAgent", "TextInputSwitcher",
-            "PasswordsMenuBarExtra",
-            // Window management
-            "WindowManager",
-            // Auth / security dialogs
-            "SecurityAgent", "coreautha",
-            // Session / screen
-            "loginwindow", "screencaptureui", "ScreenSaverEngine",
-            // Misc system agents that own windows
-            "SiriNCService", "AccessibilityVisualsAgent",
-            "Open and Save Panel Service", "CursorUIViewService",
-            "nsattributedstringagent", "LinkedNotesUIService",
-            "ThemeWidgetControlViewService", "Universal Control",
-        ]
-        if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String {
-            apps.insert(name)
-        }
-        return apps
-    }()
+    /// Apps to exclude from FFM (system UI elements that should never receive auto-paste).
+    /// Finder and LocalSTT itself are intentionally not excluded — they are valid paste targets.
+    private static let excludedApps: Set<String> = [
+        // Core system UI
+        "Dock", "Window Server", "Wallpaper",
+        // Menu bar / status UI
+        "Control Center", "Notification Center", "SystemUIServer",
+        "TextInputMenuAgent", "TextInputSwitcher",
+        "PasswordsMenuBarExtra",
+        // Window management
+        "WindowManager",
+        // Auth / security dialogs
+        "SecurityAgent", "coreautha",
+        // Session / screen
+        "loginwindow", "screencaptureui", "ScreenSaverEngine",
+        // Misc system agents that own windows
+        "SiriNCService", "AccessibilityVisualsAgent",
+        "Open and Save Panel Service", "CursorUIViewService",
+        "nsattributedstringagent", "LinkedNotesUIService",
+        "ThemeWidgetControlViewService", "Universal Control",
+    ]
 
     /// Minimum dwell time before raising in hover mode.
     private static let hoverDwellTime: TimeInterval = 0.05
@@ -177,6 +171,12 @@ final class AutoPasteManager {
               let pid = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
               let name = windowInfo[kCGWindowOwnerName as String] as? String
         else { return nil }
+
+        // Skip non-standard layer windows (desktop = kCGDesktopWindowLevel, overlays, etc.)
+        // Normal windows are layer 0; anything else is a system surface we shouldn't interact with.
+        if let layer = windowInfo[kCGWindowLayer as String] as? Int, layer != 0 {
+            return nil
+        }
 
         return WindowInfo(pid: pid, appName: name, windowID: windowID)
     }

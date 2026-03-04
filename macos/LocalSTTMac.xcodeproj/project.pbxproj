@@ -18,6 +18,7 @@
 		8F2DE3EF85FDF3C2B533652D /* MacRecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD970CFF003B4B64B93C5F6 /* MacRecordButton.swift */; };
 		91C68E200E751578A34EDFF9 /* MacVocabularyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A6B8A4BBCA0A4621928EE /* MacVocabularyView.swift */; };
 		A687DF6B8616B29001AAC19A /* LocalSTTMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8711AC5599070B47F7F805D /* LocalSTTMacApp.swift */; };
+		A77F6EF9A16CBC9286D63DE3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 51D65CA731EAB64C5B42E7F0 /* Assets.xcassets */; };
 		A98FFFE008FB987AAA0452C0 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33451251221F401D317E6A46 /* MenuBarView.swift */; };
 		B321871D5AEDF5C5494202B0 /* MacSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42BCB0BF58870318722C792E /* MacSettingsView.swift */; };
 		BC3AA34E7F36AE8B9D697FF1 /* MacWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74940AE047B5B49545AE31F8 /* MacWaveformView.swift */; };
@@ -35,6 +36,7 @@
 		426689E57CCB3B6CE5AF37B6 /* AutoPasteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPasteManager.swift; sourceTree = "<group>"; };
 		42BCB0BF58870318722C792E /* MacSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettingsView.swift; sourceTree = "<group>"; };
 		50C5850931CF248EB52BC175 /* LocalSTTMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalSTTMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		51D65CA731EAB64C5B42E7F0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6515D58D510B9875098B38E0 /* MacAppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAppState.swift; sourceTree = "<group>"; };
 		6AC16F9BC6EFEF69AF7881C4 /* MacHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacHistoryView.swift; sourceTree = "<group>"; };
 		6D3DE4A5FB34E6571CF7623C /* replacements.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = replacements.json; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 		9101A44BD04ED2654E14E4AC /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				51D65CA731EAB64C5B42E7F0 /* Assets.xcassets */,
 				6D3DE4A5FB34E6571CF7623C /* replacements.json */,
 				84916DEA0F8A50B2EC292B8B /* vocabulary_usage.json */,
 				EF93DD016797F4EBABDF6A31 /* vocabulary.txt */,
@@ -215,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A77F6EF9A16CBC9286D63DE3 /* Assets.xcassets in Resources */,
 				BE4035B47DD70847336DFC2C /* replacements.json in Resources */,
 				6345B4E5C852EA4028337706 /* vocabulary.txt in Resources */,
 				80B60817065D59722C719ACD /* vocabulary_usage.json in Resources */,

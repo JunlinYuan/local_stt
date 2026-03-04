@@ -35,6 +35,13 @@ enum RecordingState: Equatable {
         default: return false
         }
     }
+
+    var isRecordingOrTranscribing: Bool {
+        switch self {
+        case .recording, .transcribing: return true
+        default: return false
+        }
+    }
 }
 
 /// Central Mac app coordinator. Owns services and manages recording lifecycle.
@@ -131,7 +138,7 @@ final class MacAppState {
         self.replacementsEnabled = replacementManager.isEnabled
 
         // Normalize unknown language codes
-        let knownCodes = ["", "en", "fr", "zh"]
+        let knownCodes = ["", "en", "fr", "zh", "ja"]
         if !knownCodes.contains(language) { language = "" }
     }
 
@@ -381,6 +388,65 @@ final class MacAppState {
         accessibilityGranted = AXIsProcessTrusted()
         hotkeyManager?.restartMonitoring()
         autoPasteManager?.restartTracking()
+    }
+
+    // MARK: - Bulk Export / Import
+
+    /// JSON structure for bulk export/import of vocabulary and replacement data.
+    private struct BulkData: Codable {
+        var vocabulary: [String]?
+        var replacements: [BulkReplacement]?
+
+        struct BulkReplacement: Codable {
+            let from: String
+            let to: String
+        }
+    }
+
+    /// Export vocabulary words and replacement rules as JSON data.
+    func exportBulkData() -> Data? {
+        let bulk = BulkData(
+            vocabulary: vocabularyManager.words,
+            replacements: replacementManager.rules.map {
+                BulkData.BulkReplacement(from: $0.from, to: $0.to)
+            }
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(bulk)
+    }
+
+    /// Import vocabulary words and replacement rules from JSON data.
+    /// Returns a summary string describing what was imported.
+    func importBulkData(_ data: Data) -> String {
+        guard let bulk = try? JSONDecoder().decode(BulkData.self, from: data) else {
+            return "Invalid JSON format"
+        }
+
+        var parts: [String] = []
+
+        if let words = bulk.vocabulary {
+            vocabularyManager.setWords(words)
+            syncVocabulary()
+            parts.append("\(words.count) vocabulary words")
+        }
+
+        if let replacements = bulk.replacements {
+            // Clear existing rules
+            for rule in replacementManager.rules {
+                _ = replacementManager.removeRule(rule)
+            }
+            // Add imported rules
+            var added = 0
+            for r in replacements {
+                let (success, _) = replacementManager.addRule(from: r.from, to: r.to)
+                if success { added += 1 }
+            }
+            syncReplacements()
+            parts.append("\(added) replacement rules")
+        }
+
+        return parts.isEmpty ? "No data found in file" : "Imported \(parts.joined(separator: " and "))"
     }
 
     // MARK: - Error Reset

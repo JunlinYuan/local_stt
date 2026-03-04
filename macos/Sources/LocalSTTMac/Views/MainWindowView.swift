@@ -6,6 +6,9 @@ struct MainWindowView: View {
     @Environment(MacAppState.self) private var appState
     @State private var showVocabPanel = false
     @State private var showReplacePanel = false
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
+    @State private var keyMonitor: Any?
 
     var body: some View {
         ZStack {
@@ -20,7 +23,9 @@ struct MainWindowView: View {
                 // History fills available space
                 MacHistoryView(
                     items: appState.history,
-                    highlightedID: latestResultID
+                    highlightedID: latestResultID,
+                    searchText: $searchText,
+                    isSearchFocused: $isSearchFocused
                 )
                 .frame(maxHeight: .infinity)
 
@@ -59,6 +64,10 @@ struct MainWindowView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             appState.setupServices()
+            installKeyMonitor()
+        }
+        .onDisappear {
+            removeKeyMonitor()
         }
         .sheet(isPresented: $showVocabPanel) {
             MacVocabularyView()
@@ -70,6 +79,90 @@ struct MainWindowView: View {
                 .environment(appState)
                 .frame(minWidth: 400, minHeight: 400)
         }
+    }
+
+    // MARK: - Keyboard Shortcuts
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            return handleKeyEvent(event) ? nil : event
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+    }
+
+    /// Handle a key event. Returns `true` if consumed (swallowed), `false` to pass through.
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        // Skip events with Cmd/Option/Control modifiers — those are system shortcuts
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.command) || modifiers.contains(.option) || modifiers.contains(.control) {
+            return false
+        }
+
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+        // Check if a text field is focused (typing in search, sheets, etc.)
+        let isTextFieldActive = NSApp.keyWindow?.firstResponder is NSText
+
+        // Esc always handled (priority chain: close sheet → clear search → unfocus search)
+        if event.keyCode == 53 { // Esc
+            if showVocabPanel {
+                showVocabPanel = false
+                return true
+            }
+            if showReplacePanel {
+                showReplacePanel = false
+                return true
+            }
+            if !searchText.isEmpty {
+                searchText = ""
+                return true
+            }
+            if isSearchFocused {
+                isSearchFocused = false
+                return true
+            }
+            return false
+        }
+
+        // "/" focuses search — standard vim-style trigger
+        if key == "/" && !isTextFieldActive && !showVocabPanel && !showReplacePanel {
+            isSearchFocused = true
+            return true
+        }
+
+        // All remaining shortcuts require: no text field focused, no sheet open, not recording
+        guard !isTextFieldActive,
+              !showVocabPanel,
+              !showReplacePanel
+        else { return false }
+
+        // Language shortcuts (also require not recording/transcribing)
+        if !appState.state.isRecordingOrTranscribing {
+            switch key {
+            case "a": appState.language = ""; return true
+            case "e": appState.language = "en"; return true
+            case "f": appState.language = "fr"; return true
+            case "c": appState.language = "zh"; return true
+            case "j": appState.language = "ja"; return true
+            default: break
+            }
+        }
+
+        // Panel shortcuts
+        switch key {
+        case "v": showVocabPanel = true; return true
+        case "r": showReplacePanel = true; return true
+        default: break
+        }
+
+        return false
     }
 
     // MARK: - Language Bar
@@ -100,7 +193,7 @@ struct MainWindowView: View {
     }
 
     private var languages: [(code: String, label: String)] {
-        [("", "AUTO"), ("en", "EN"), ("fr", "FR"), ("zh", "ZH")]
+        [("", "AUTO"), ("en", "EN"), ("fr", "FR"), ("zh", "ZH"), ("ja", "JA")]
     }
 
     // MARK: - Quick Access Chips

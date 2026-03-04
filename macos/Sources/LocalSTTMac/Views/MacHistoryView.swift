@@ -11,8 +11,12 @@ struct MacHistoryView: View {
     let items: [TranscriptionResult]
     var highlightedID: UUID? = nil
 
-    @State private var searchText = ""
+    /// Search text and focus state, owned by MainWindowView for keyboard shortcut access.
+    @Binding var searchText: String
+    var isSearchFocused: FocusState<Bool>.Binding
+
     @State private var copiedID: UUID?
+    @State private var sweepProgress: [UUID: CGFloat] = [:]
 
     private var filteredItems: [TranscriptionResult] {
         guard !searchText.isEmpty else { return items }
@@ -67,7 +71,10 @@ struct MacHistoryView: View {
     // MARK: - Row
 
     private func historyRow(_ item: TranscriptionResult) -> some View {
-        HStack(spacing: 0) {
+        let isCopied = copiedID == item.id
+        let sweep = sweepProgress[item.id] ?? 0
+
+        return HStack(spacing: 0) {
             // Teal left accent for highlighted item
             if item.id == highlightedID {
                 RoundedRectangle(cornerRadius: 2)
@@ -110,9 +117,9 @@ struct MacHistoryView: View {
 
                     Spacer()
 
-                    // "Copied" flash
-                    if copiedID == item.id {
-                        Text("Copied")
+                    // "Copied!" badge during sweep
+                    if isCopied {
+                        Text("Copied!")
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(Color.accentTeal)
                             .transition(.opacity)
@@ -132,14 +139,21 @@ struct MacHistoryView: View {
             }
         }
         .padding(10)
-        .background(
-            copiedID == item.id ? Color.accentTeal.opacity(0.08) : Color.appSurface,
-            in: RoundedRectangle(cornerRadius: 8)
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            // Sweep overlay: teal highlight sweeps left-to-right on copy
+            GeometryReader { geo in
+                Color.accentTeal.opacity(0.12)
+                    .frame(width: geo.size.width * sweep)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .opacity(isCopied ? 1 : 0)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
-                    copiedID == item.id ? Color.accentTeal.opacity(0.3) : Color.appBorder,
+                    isCopied ? Color.accentTeal.opacity(0.3) : Color.appBorder,
                     lineWidth: 1
                 )
         )
@@ -152,11 +166,21 @@ struct MacHistoryView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(item.text, forType: .string)
 
+        // Start sweep animation
+        sweepProgress[item.id] = 0
         withAnimation(.easeInOut(duration: 0.2)) {
             copiedID = item.id
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            withAnimation { copiedID = nil }
+        withAnimation(.easeOut(duration: 0.4)) {
+            sweepProgress[item.id] = 1
+        }
+
+        // Fade out after sweep completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                copiedID = nil
+                sweepProgress[item.id] = nil
+            }
         }
     }
 
@@ -171,6 +195,7 @@ struct MacHistoryView: View {
             TextField("Search history...", text: $searchText)
                 .font(.subheadline)
                 .textFieldStyle(.plain)
+                .focused(isSearchFocused)
 
             if !searchText.isEmpty {
                 Text("(\(filteredItems.count)/\(items.count))")

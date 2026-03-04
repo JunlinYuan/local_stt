@@ -71,3 +71,13 @@ ios/.swiftpm/
 ios/LocalSTT.xcodeproj/project.xcworkspace/
 ios/LocalSTT.xcodeproj/xcuserdata/
 ios/LocalSTT.xcodeproj/xcshareddata/
+
+# macOS / Xcode
+macos/.build/
+macos/.swiftpm/
+macos/LocalSTTMac.xcodeproj/project.xcworkspace/
+macos/LocalSTTMac.xcodeproj/xcuserdata/
+macos/LocalSTTMac.xcodeproj/xcshareddata/
+
+# Claude Code local settings
+.claude/settings.local.json

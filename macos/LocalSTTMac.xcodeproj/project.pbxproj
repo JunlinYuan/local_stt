@@ -1,0 +1,458 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		21CAA4700E10CC409F2CA46A /* MacAudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A793C046804328EAB906AB6 /* MacAudioRecorder.swift */; };
+		4243EE65EB198954C870D065 /* AutoPasteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 426689E57CCB3B6CE5AF37B6 /* AutoPasteManager.swift */; };
+		4C6B21F624EA007D3A629CCA /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF300447C762D3584C00ECD3 /* Color+Hex.swift */; };
+		61F563EE04EEF10086E49F74 /* LocalSTTCore in Frameworks */ = {isa = PBXBuildFile; productRef = C5F49551FB225F47CDBE9B44 /* LocalSTTCore */; };
+		6345B4E5C852EA4028337706 /* vocabulary.txt in Resources */ = {isa = PBXBuildFile; fileRef = EF93DD016797F4EBABDF6A31 /* vocabulary.txt */; };
+		6F22991580BFEC8914E48377 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB00FC6A4A3C822413384A70 /* MainWindowView.swift */; };
+		7CD20FCA94C26352BA7B8BD7 /* MacHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC16F9BC6EFEF69AF7881C4 /* MacHistoryView.swift */; };
+		80B60817065D59722C719ACD /* vocabulary_usage.json in Resources */ = {isa = PBXBuildFile; fileRef = 84916DEA0F8A50B2EC292B8B /* vocabulary_usage.json */; };
+		8F2DE3EF85FDF3C2B533652D /* MacRecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD970CFF003B4B64B93C5F6 /* MacRecordButton.swift */; };
+		91C68E200E751578A34EDFF9 /* MacVocabularyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A6B8A4BBCA0A4621928EE /* MacVocabularyView.swift */; };
+		A687DF6B8616B29001AAC19A /* LocalSTTMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8711AC5599070B47F7F805D /* LocalSTTMacApp.swift */; };
+		A98FFFE008FB987AAA0452C0 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33451251221F401D317E6A46 /* MenuBarView.swift */; };
+		B321871D5AEDF5C5494202B0 /* MacSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42BCB0BF58870318722C792E /* MacSettingsView.swift */; };
+		BC3AA34E7F36AE8B9D697FF1 /* MacWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74940AE047B5B49545AE31F8 /* MacWaveformView.swift */; };
+		BC64FCEFBD5D64DB02C2D8E9 /* MacAppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6515D58D510B9875098B38E0 /* MacAppState.swift */; };
+		BE4035B47DD70847336DFC2C /* replacements.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D3DE4A5FB34E6571CF7623C /* replacements.json */; };
+		D0825BC83155D604945B1692 /* GlobalHotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0D4F946E5324D59273F6E0 /* GlobalHotkeyManager.swift */; };
+		F7915C6B8723CA77A5D7FC26 /* MacReplacementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F8DD8510E95F80DB2CB69D /* MacReplacementsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		00F8DD8510E95F80DB2CB69D /* MacReplacementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacReplacementsView.swift; sourceTree = "<group>"; };
+		2DD970CFF003B4B64B93C5F6 /* MacRecordButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacRecordButton.swift; sourceTree = "<group>"; };
+		2F9A6B8A4BBCA0A4621928EE /* MacVocabularyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacVocabularyView.swift; sourceTree = "<group>"; };
+		33451251221F401D317E6A46 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		426689E57CCB3B6CE5AF37B6 /* AutoPasteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPasteManager.swift; sourceTree = "<group>"; };
+		42BCB0BF58870318722C792E /* MacSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettingsView.swift; sourceTree = "<group>"; };
+		50C5850931CF248EB52BC175 /* LocalSTTMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalSTTMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6515D58D510B9875098B38E0 /* MacAppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAppState.swift; sourceTree = "<group>"; };
+		6AC16F9BC6EFEF69AF7881C4 /* MacHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacHistoryView.swift; sourceTree = "<group>"; };
+		6D3DE4A5FB34E6571CF7623C /* replacements.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = replacements.json; sourceTree = "<group>"; };
+		74940AE047B5B49545AE31F8 /* MacWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWaveformView.swift; sourceTree = "<group>"; };
+		7594FF05EEA96CAF7A27E393 /* ios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios; path = ../ios; sourceTree = SOURCE_ROOT; };
+		7A793C046804328EAB906AB6 /* MacAudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAudioRecorder.swift; sourceTree = "<group>"; };
+		84916DEA0F8A50B2EC292B8B /* vocabulary_usage.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = vocabulary_usage.json; sourceTree = "<group>"; };
+		A8711AC5599070B47F7F805D /* LocalSTTMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSTTMacApp.swift; sourceTree = "<group>"; };
+		CB00FC6A4A3C822413384A70 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
+		CE0D4F946E5324D59273F6E0 /* GlobalHotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyManager.swift; sourceTree = "<group>"; };
+		EF93DD016797F4EBABDF6A31 /* vocabulary.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = vocabulary.txt; sourceTree = "<group>"; };
+		FF300447C762D3584C00ECD3 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DCE71F4457A4312BD2D4EAAA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61F563EE04EEF10086E49F74 /* LocalSTTCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0F6D7F12B2A072E0D89EA1AF /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				7594FF05EEA96CAF7A27E393 /* ios */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		141DA3753F87EEAAE7E64FF8 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				FDBAD8A2B5D21A4FD7CA39FE /* LocalSTTMac */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		6D66F25DE87A0E2674D5A456 = {
+			isa = PBXGroup;
+			children = (
+				0F6D7F12B2A072E0D89EA1AF /* Packages */,
+				9101A44BD04ED2654E14E4AC /* Resources */,
+				141DA3753F87EEAAE7E64FF8 /* Sources */,
+				89D9DC1D29D04AA010DC7000 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		89D9DC1D29D04AA010DC7000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				50C5850931CF248EB52BC175 /* LocalSTTMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9101A44BD04ED2654E14E4AC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6D3DE4A5FB34E6571CF7623C /* replacements.json */,
+				84916DEA0F8A50B2EC292B8B /* vocabulary_usage.json */,
+				EF93DD016797F4EBABDF6A31 /* vocabulary.txt */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		ADA960756A9ABCBDFF24AA2C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				6AC16F9BC6EFEF69AF7881C4 /* MacHistoryView.swift */,
+				2DD970CFF003B4B64B93C5F6 /* MacRecordButton.swift */,
+				00F8DD8510E95F80DB2CB69D /* MacReplacementsView.swift */,
+				42BCB0BF58870318722C792E /* MacSettingsView.swift */,
+				2F9A6B8A4BBCA0A4621928EE /* MacVocabularyView.swift */,
+				74940AE047B5B49545AE31F8 /* MacWaveformView.swift */,
+				CB00FC6A4A3C822413384A70 /* MainWindowView.swift */,
+				33451251221F401D317E6A46 /* MenuBarView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E36C66BAFFBF85534FCD5CC5 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				426689E57CCB3B6CE5AF37B6 /* AutoPasteManager.swift */,
+				CE0D4F946E5324D59273F6E0 /* GlobalHotkeyManager.swift */,
+				7A793C046804328EAB906AB6 /* MacAudioRecorder.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		F33C322BBC5E3DDE11C3E732 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				FF300447C762D3584C00ECD3 /* Color+Hex.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		FDBAD8A2B5D21A4FD7CA39FE /* LocalSTTMac */ = {
+			isa = PBXGroup;
+			children = (
+				A8711AC5599070B47F7F805D /* LocalSTTMacApp.swift */,
+				6515D58D510B9875098B38E0 /* MacAppState.swift */,
+				E36C66BAFFBF85534FCD5CC5 /* Services */,
+				F33C322BBC5E3DDE11C3E732 /* Utilities */,
+				ADA960756A9ABCBDFF24AA2C /* Views */,
+			);
+			path = LocalSTTMac;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		75E32414EFD6BC69A3691B82 /* LocalSTTMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6B38E57720A0FD1F49F4B5D9 /* Build configuration list for PBXNativeTarget "LocalSTTMac" */;
+			buildPhases = (
+				EB979D8A6784297B15C30925 /* Sources */,
+				ADE3EB8853A51A89E6094E52 /* Resources */,
+				DCE71F4457A4312BD2D4EAAA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LocalSTTMac;
+			packageProductDependencies = (
+				C5F49551FB225F47CDBE9B44 /* LocalSTTCore */,
+			);
+			productName = LocalSTTMac;
+			productReference = 50C5850931CF248EB52BC175 /* LocalSTTMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C2164680D06A5EBE45480A4D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					75E32414EFD6BC69A3691B82 = {
+						DevelopmentTeam = 87USV8CD9Z;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 3303582E52E2922C3281863C /* Build configuration list for PBXProject "LocalSTTMac" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6D66F25DE87A0E2674D5A456;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				38B6DFEB5206B42476CE5D19 /* XCLocalSwiftPackageReference "../ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				75E32414EFD6BC69A3691B82 /* LocalSTTMac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		ADE3EB8853A51A89E6094E52 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE4035B47DD70847336DFC2C /* replacements.json in Resources */,
+				6345B4E5C852EA4028337706 /* vocabulary.txt in Resources */,
+				80B60817065D59722C719ACD /* vocabulary_usage.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		EB979D8A6784297B15C30925 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4243EE65EB198954C870D065 /* AutoPasteManager.swift in Sources */,
+				4C6B21F624EA007D3A629CCA /* Color+Hex.swift in Sources */,
+				D0825BC83155D604945B1692 /* GlobalHotkeyManager.swift in Sources */,
+				A687DF6B8616B29001AAC19A /* LocalSTTMacApp.swift in Sources */,
+				BC64FCEFBD5D64DB02C2D8E9 /* MacAppState.swift in Sources */,
+				21CAA4700E10CC409F2CA46A /* MacAudioRecorder.swift in Sources */,
+				7CD20FCA94C26352BA7B8BD7 /* MacHistoryView.swift in Sources */,
+				8F2DE3EF85FDF3C2B533652D /* MacRecordButton.swift in Sources */,
+				F7915C6B8723CA77A5D7FC26 /* MacReplacementsView.swift in Sources */,
+				B321871D5AEDF5C5494202B0 /* MacSettingsView.swift in Sources */,
+				91C68E200E751578A34EDFF9 /* MacVocabularyView.swift in Sources */,
+				BC3AA34E7F36AE8B9D697FF1 /* MacWaveformView.swift in Sources */,
+				6F22991580BFEC8914E48377 /* MainWindowView.swift in Sources */,
+				A98FFFE008FB987AAA0452C0 /* MenuBarView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3B33796570E15F5255A423E9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/LocalSTTMac.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 87USV8CD9Z;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localSTT.mac;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		3D96C515D95D05D5419CBEEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/LocalSTTMac.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 87USV8CD9Z;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localSTT.mac;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		B4BCA4F6188C1BCA871330B9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		EF55E746E0BABF5AABC3FFDA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3303582E52E2922C3281863C /* Build configuration list for PBXProject "LocalSTTMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EF55E746E0BABF5AABC3FFDA /* Debug */,
+				B4BCA4F6188C1BCA871330B9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6B38E57720A0FD1F49F4B5D9 /* Build configuration list for PBXNativeTarget "LocalSTTMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3D96C515D95D05D5419CBEEA /* Debug */,
+				3B33796570E15F5255A423E9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		38B6DFEB5206B42476CE5D19 /* XCLocalSwiftPackageReference "../ios" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ios;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C5F49551FB225F47CDBE9B44 /* LocalSTTCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LocalSTTCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C2164680D06A5EBE45480A4D /* Project object */;
+}

@@ -1,0 +1,90 @@
+# Custom vocabulary for speech-to-text
+# One word/phrase per line, comments start with #
+# Words are case-sensitive (TEMPEST stays TEMPEST)
+# Ordered by usage frequency (most-used first)
+
+MCP
+MCP tool
+subagent
+TEMPEST
+Slack
+Railway
+markdown
+Claude Code
+CLI
+NSF
+MSU
+DNS
+bib
+STT
+HPCC
+Reynolds number
+DARPA
+Antoine
+Matlab
+LaTeX
+Openrouter
+CLAUDE.md
+Ricardo
+bib MCP
+Tommy
+Supabase
+Arnab
+Jamal
+Vercel
+primer
+OpenClaw
+Kansal
+RANS
+Hangjian
+Overleaf
+Commit your changes only
+API call
+Groq
+Tauri
+TTD
+Bei
+Darcy
+deploy subagent
+gitignore
+Codex
+ME433
+LangChain
+TTS
+Tavily
+delta
+Context7
+JGR
+Phani
+life context MCP
+bedform
+pull remote origin
+Guangchen
+AKCode
+JFM
+Ugo
+.env
+Claude Agent SDK
+Mistral
+Madeline
+Fortran
+Adeleye
+Farhad
+nonholonomic
+Giles
+superhydrophobic
+Haiyan
+Kolmogorov
+Geoff
+NIH
+Strouhal number
+TuanTuan
+Navier-Stokes
+hyporheic
+Despeyroux
+ONR
+DOE
+Junlin
+.zshrc
+Reynolds shear stress
+Jellyfin

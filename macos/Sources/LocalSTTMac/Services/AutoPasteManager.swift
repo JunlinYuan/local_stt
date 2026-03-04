@@ -14,7 +14,7 @@ enum FFMMode {
 /// Manages mouse tracking, window detection, and auto-paste to target windows.
 ///
 /// Uses all-native macOS APIs:
-/// - NSEvent global monitor for mouse tracking (event-driven, not polling)
+/// - NSEvent global + local monitors for mouse tracking (event-driven, not polling)
 /// - NSWindow.windowNumber(at:) + CGWindowListCopyWindowInfo for window detection
 /// - NSRunningApplication.activate for app activation
 /// - AXUIElement for window raise (hover mode)
@@ -40,16 +40,17 @@ final class AutoPasteManager {
     private(set) var trackedWindowID: CGWindowID = 0
 
     private var mouseMonitor: Any?
+    private var localMouseMonitor: Any?
+    private var deferredRaiseWork: DispatchWorkItem?
     private var lastHoverPID: pid_t = 0
     private var lastHoverTime: Date = .distantPast
     private var lastRaiseTime: Date = .distantPast
     private var lastWindowCheckTime: Date = .distantPast
 
-    /// Apps to exclude from FFM tracking and raise.
+    /// Apps to exclude from FFM tracking and raise entirely.
     /// Finder is excluded from this list (handled by kCGWindowLayer desktop filter instead).
-    /// LocalSTT itself must be excluded to prevent a focus trap in raise_on_hover mode.
-    private static let excludedApps: Set<String> = {
-        var apps: Set<String> = [
+    /// LocalSTT itself is handled separately via `ownPID` — tracked for transitions but never raised.
+    private static let excludedApps: Set<String> = [
         // Core system UI
         "Dock", "Window Server", "Wallpaper",
         // Menu bar / status UI
@@ -67,13 +68,10 @@ final class AutoPasteManager {
         "Open and Save Panel Service", "CursorUIViewService",
         "nsattributedstringagent", "LinkedNotesUIService",
         "ThemeWidgetControlViewService", "Universal Control",
-        ]
-        // Exclude our own app to prevent focus trap in raise_on_hover mode
-        if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String {
-            apps.insert(name)
-        }
-        return apps
-    }()
+    ]
+
+    /// Our own PID — tracked for hover transitions but never raised (prevents focus trap).
+    private static let ownPID: pid_t = ProcessInfo.processInfo.processIdentifier
 
     /// Minimum dwell time before raising in hover mode.
     private static let hoverDwellTime: TimeInterval = 0.05
@@ -105,8 +103,17 @@ final class AutoPasteManager {
     private func startTracking() {
         guard mouseMonitor == nil else { return }
 
+        // Global monitor: captures mouse events when OTHER apps are active
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
             self?.handleMouseMoved(event)
+        }
+
+        // Local monitor: captures mouse events when OUR app is active.
+        // The global monitor goes silent when we're frontmost, so without this,
+        // FFM tracking stops entirely when LocalSTT's window is in the foreground.
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            self?.handleMouseMoved(event)
+            return event  // Pass through — don't consume mouse movement
         }
 
         if mouseMonitor == nil {
@@ -121,6 +128,12 @@ final class AutoPasteManager {
             NSEvent.removeMonitor(monitor)
             mouseMonitor = nil
         }
+        if let monitor = localMouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMouseMonitor = nil
+        }
+        deferredRaiseWork?.cancel()
+        deferredRaiseWork = nil
         trackedPID = 0
         trackedAppName = ""
         trackedWindowID = 0
@@ -137,22 +150,35 @@ final class AutoPasteManager {
         // Get window under cursor
         guard let info = windowInfoUnderMouse(at: point) else { return }
 
-        // Skip excluded system apps
+        // Skip excluded system apps entirely
         guard !Self.excludedApps.contains(info.appName) else { return }
 
-        // Log when tracked target changes
-        if info.pid != trackedPID {
-            logger.debug("Tracking: \(info.appName, privacy: .public) (PID \(info.pid), window \(info.windowID))")
-        }
+        let isSelf = info.pid == Self.ownPID
 
-        // Update tracked target
-        trackedPID = info.pid
-        trackedAppName = info.appName
-        trackedWindowID = info.windowID
+        // Update paste target only for other apps (not our own window)
+        if !isSelf {
+            if info.pid != trackedPID {
+                logger.debug("Tracking: \(info.appName, privacy: .public) (PID \(info.pid), window \(info.windowID))")
+            }
+            trackedPID = info.pid
+            trackedAppName = info.appName
+            trackedWindowID = info.windowID
+        }
 
         // Raise on hover mode
         if mode == .raiseOnHover {
-            handleHoverRaise(pid: info.pid, windowID: info.windowID)
+            if isSelf {
+                // Track PID transition but don't raise self (prevents focus trap).
+                // This lets the deferred timer for the NEXT app start from a clean state.
+                if lastHoverPID != Self.ownPID {
+                    lastHoverPID = Self.ownPID
+                    lastHoverTime = now
+                    deferredRaiseWork?.cancel()
+                    deferredRaiseWork = nil
+                }
+            } else {
+                handleHoverRaise(pid: info.pid, windowID: info.windowID)
+            }
         }
     }
 
@@ -195,25 +221,53 @@ final class AutoPasteManager {
         let now = Date()
 
         if pid != lastHoverPID {
-            // New window — reset dwell timer
+            // New window — reset dwell timer and schedule deferred raise.
+            // The deferred timer ensures the raise fires even if the mouse stops moving,
+            // which the old approach (checking dwell on next mouse event) couldn't handle.
             lastHoverPID = pid
             lastHoverTime = now
+            scheduleDeferredRaise(pid: pid, windowID: windowID)
             return
         }
 
-        // Check dwell time threshold
+        // Same window, mouse still moving — check if we can raise immediately
         guard now.timeIntervalSince(lastHoverTime) >= Self.hoverDwellTime else { return }
-
-        // Check cooldown since last raise (not since hover start)
         guard now.timeIntervalSince(lastRaiseTime) >= Self.hoverCooldown else { return }
-
-        // Don't raise if Left Command is held (allows drag without raise)
         guard !NSEvent.modifierFlags.contains(.command) else { return }
 
-        // Raise the specific window using Accessibility API
+        // Cancel deferred raise since we're raising now
+        deferredRaiseWork?.cancel()
+        deferredRaiseWork = nil
+
         logger.debug("Hover raise: PID \(pid), window \(windowID)")
         raiseWindow(pid: pid, windowID: windowID)
         lastRaiseTime = now
+    }
+
+    /// Schedule a raise after dwell time, even if the mouse stops moving.
+    ///
+    /// Without this, a raise only triggers when a subsequent mouse event checks the dwell timer.
+    /// If the mouse enters a window and stops, no further events arrive and the raise never fires.
+    /// The timer also respects the cooldown period from the last raise.
+    private func scheduleDeferredRaise(pid: pid_t, windowID: CGWindowID) {
+        deferredRaiseWork?.cancel()
+
+        let timeSinceLastRaise = Date().timeIntervalSince(lastRaiseTime)
+        let cooldownRemaining = max(0, Self.hoverCooldown - timeSinceLastRaise)
+        let delay = max(Self.hoverDwellTime, cooldownRemaining)
+
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            guard self.lastHoverPID == pid else { return }
+            guard !NSEvent.modifierFlags.contains(.command) else { return }
+
+            logger.debug("Deferred raise: PID \(pid), window \(windowID)")
+            self.raiseWindow(pid: pid, windowID: windowID)
+            self.lastRaiseTime = Date()
+        }
+
+        deferredRaiseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     /// Raise the window matching the given CGWindowID via AXUIElement.

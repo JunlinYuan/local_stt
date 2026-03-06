@@ -66,6 +66,7 @@ final class MacAppState {
     private(set) var autoPasteManager: AutoPasteManager?
 
     private let minRecordingDuration: TimeInterval = 0.3
+    private let minVolumeRMS: Double = 100.0
 
     // MARK: - Settings (persisted in UserDefaults)
 
@@ -91,6 +92,10 @@ final class MacAppState {
 
     var volumeNormalization: Bool {
         didSet { UserDefaults.standard.set(volumeNormalization, forKey: "volume_normalization") }
+    }
+
+    var saveDebugAudio: Bool {
+        didSet { UserDefaults.standard.set(saveDebugAudio, forKey: "save_debug_audio") }
     }
 
     // MARK: - Observable Mirrors
@@ -122,6 +127,7 @@ final class MacAppState {
         self.clipboardSyncDelay = UserDefaults.standard.object(forKey: "clipboard_sync_delay") as? Double ?? 0.05
         self.pasteDelay = UserDefaults.standard.object(forKey: "paste_delay") as? Double ?? 0.05
         self.volumeNormalization = UserDefaults.standard.object(forKey: "volume_normalization") as? Bool ?? true
+        self.saveDebugAudio = UserDefaults.standard.object(forKey: "save_debug_audio") as? Bool ?? false
 
         // Initialize vocabulary manager
         let bundledVocab = Bundle.main.url(forResource: "vocabulary", withExtension: "txt")
@@ -271,13 +277,31 @@ final class MacAppState {
         // Normalize volume if enabled
         var wavData = rawWavData
         var normGainDB: Double? = nil
+        var processedRMS: Double
         if volumeNormalization {
             let normResult = AudioNormalizer.normalize(wavData: rawWavData)
             wavData = normResult.wavData
             normGainDB = abs(normResult.gainDB) >= 1.0 ? normResult.gainDB : nil
+            processedRMS = normResult.processedRMS
             logger.info("Volume normalization: RMS \(normResult.originalRMS, format: .fixed(precision: 0)) → \(normResult.processedRMS, format: .fixed(precision: 0)), gain \(normResult.gainDB, format: .fixed(precision: 1))dB")
+        } else {
+            processedRMS = AudioNormalizer.calculateRMS(wavData: rawWavData)
         }
         lastNormalizationGainDB = normGainDB
+
+        // Min volume check (always runs, matching backend)
+        if processedRMS < minVolumeRMS {
+            saveDebugAudioFiles(raw: rawWavData, processed: wavData)
+            state = .error("Too quiet — no speech detected")
+            scheduleErrorReset()
+            return
+        }
+
+        // Silence padding for short clips (improves Whisper accuracy)
+        wavData = SilencePadder.pad(wavData: wavData)
+
+        // Save debug audio files to Desktop
+        saveDebugAudioFiles(raw: rawWavData, processed: wavData)
 
         Task { @MainActor in
             do {
@@ -481,6 +505,21 @@ final class MacAppState {
     }
 
     // MARK: - Error Reset
+
+    private func saveDebugAudioFiles(raw rawWavData: Data, processed wavData: Data) {
+        guard saveDebugAudio else { return }
+        let desktop = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop")
+        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let rawURL = desktop.appendingPathComponent("debug_raw_\(timestamp).wav")
+        let processedURL = desktop.appendingPathComponent("debug_processed_\(timestamp).wav")
+        do {
+            try rawWavData.write(to: rawURL)
+            try wavData.write(to: processedURL)
+            logger.info("Debug audio saved: \(rawURL.lastPathComponent) (\(rawWavData.count) bytes), \(processedURL.lastPathComponent) (\(wavData.count) bytes)")
+        } catch {
+            logger.error("Failed to save debug audio: \(error.localizedDescription)")
+        }
+    }
 
     private func scheduleErrorReset() {
         Task { @MainActor in

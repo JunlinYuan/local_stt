@@ -16,6 +16,24 @@ public enum AudioNormalizer {
     /// Canonical WAV header size. Assumes WAV data is produced by WAVEncoder (no extended chunks).
     private static let wavHeaderSize = 44
 
+    /// Calculate RMS of WAV audio without normalizing.
+    public static func calculateRMS(wavData: Data) -> Double {
+        guard wavData.count > wavHeaderSize else { return 0 }
+        let pcmData = wavData.suffix(from: wavHeaderSize)
+        let sampleCount = pcmData.count / 2
+        guard sampleCount > 0 else { return 0 }
+
+        var sumSquares: Double = 0
+        pcmData.withUnsafeBytes { rawBuffer in
+            let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
+            for i in 0..<sampleCount {
+                let s = Double(int16Buffer[i])
+                sumSquares += s * s
+            }
+        }
+        return (sumSquares / Double(sampleCount)).squareRoot()
+    }
+
     /// Normalize WAV audio to target RMS level.
     /// - Parameters:
     ///   - wavData: Complete WAV file (44-byte header + int16 PCM)

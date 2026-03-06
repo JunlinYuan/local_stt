@@ -61,6 +61,14 @@ struct MacSettingsView: View {
                 Text("Boost quiet recordings for better transcription accuracy. Normalizes to a target RMS level before sending to Groq.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Toggle("Save debug audio", isOn: Binding(
+                    get: { appState.saveDebugAudio },
+                    set: { appState.saveDebugAudio = $0 }
+                ))
+                Text("Save raw and processed WAV files to Desktop for each recording. Disable after testing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Launch") {

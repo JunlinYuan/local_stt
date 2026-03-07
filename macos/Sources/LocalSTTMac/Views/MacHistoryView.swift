@@ -98,7 +98,6 @@ struct MacHistoryView: View {
                         .font(.system(.body))
                         .foregroundStyle(Color.textPrimary)
                         .lineLimit(3)
-                        .textSelection(.enabled)
                 } else {
                     highlightedText(item.text)
                         .font(.system(.body))

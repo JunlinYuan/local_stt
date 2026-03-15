@@ -111,6 +111,33 @@ struct RecordingView: View {
                 .foregroundStyle(Color.textPrimary)
             }
             .buttonStyle(.plain)
+
+            Button {
+                appState.appendMode.toggle()
+            } label: {
+                Text("APPEND")
+                    .font(.subheadline.weight(.medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        appState.appendMode
+                            ? Color.processingAmber.opacity(0.2)
+                            : Color.appSurface,
+                        in: Capsule()
+                    )
+                    .foregroundStyle(
+                        appState.appendMode ? Color.processingAmber : Color.textPrimary
+                    )
+                    .overlay(
+                        Capsule().stroke(
+                            appState.appendMode
+                                ? Color.processingAmber.opacity(0.5)
+                                : Color.clear,
+                            lineWidth: 1
+                        )
+                    )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -134,10 +161,10 @@ struct RecordingView: View {
         case .result:
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentTeal)
-                Text("Copied to clipboard")
+                    .foregroundStyle(appState.appendMode ? Color.processingAmber : Color.accentTeal)
+                Text(appState.appendMode ? "Appended & copied" : "Copied to clipboard")
                     .font(.caption)
-                    .foregroundStyle(Color.accentTeal)
+                    .foregroundStyle(appState.appendMode ? Color.processingAmber : Color.accentTeal)
             }
             .padding(.bottom, 8)
 

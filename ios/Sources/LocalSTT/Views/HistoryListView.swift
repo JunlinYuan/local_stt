@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import LocalSTTCore
 
@@ -17,6 +18,14 @@ struct HistoryListView: View {
 
     @State private var searchText = ""
     @State private var copiedID: UUID?
+    @State private var currentTime = Date()
+
+    private let recentTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+
+    /// Whether the item was recorded within the last 2 minutes.
+    private func isRecent(_ item: TranscriptionResult) -> Bool {
+        currentTime.timeIntervalSince(item.timestamp) < 120
+    }
 
     private var filteredItems: [TranscriptionResult] {
         guard !searchText.isEmpty else { return items }
@@ -42,6 +51,7 @@ struct HistoryListView: View {
                 fullList
             }
         }
+        .onReceive(recentTimer) { currentTime = $0 }
     }
 
     // MARK: - Compact Mode (ScrollView + custom cards for inline embedding)
@@ -136,10 +146,16 @@ struct HistoryListView: View {
 
     private func compactRow(_ item: TranscriptionResult) -> some View {
         HStack(spacing: 0) {
-            // Teal left accent for highlighted item
+            // Left accent: teal for highlighted, amber for recent (<2 min)
             if item.id == highlightedID {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.accentTeal)
+                    .frame(width: 3)
+                    .padding(.vertical, 4)
+                    .padding(.trailing, 8)
+            } else if isRecent(item) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.processingAmber)
                     .frame(width: 3)
                     .padding(.vertical, 4)
                     .padding(.trailing, 8)
@@ -173,7 +189,7 @@ struct HistoryListView: View {
 
                     Text(item.relativeTimestamp)
                         .font(.caption)
-                        .foregroundStyle(Color.textMuted)
+                        .foregroundStyle(isRecent(item) ? Color.processingAmber : Color.textMuted)
 
                     Spacer()
 
@@ -200,13 +216,17 @@ struct HistoryListView: View {
         }
         .padding(12)
         .background(
-            copiedID == item.id ? Color.accentTeal.opacity(0.08) : Color.appSurface,
+            copiedID == item.id ? Color.accentTeal.opacity(0.08) :
+            isRecent(item) ? Color.processingAmber.opacity(0.06) :
+            Color.appSurface,
             in: RoundedRectangle(cornerRadius: 10)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    copiedID == item.id ? Color.accentTeal.opacity(0.3) : Color.appBorder,
+                    copiedID == item.id ? Color.accentTeal.opacity(0.3) :
+                    isRecent(item) ? Color.processingAmber.opacity(0.2) :
+                    Color.appBorder,
                     lineWidth: 1
                 )
         )
@@ -216,42 +236,53 @@ struct HistoryListView: View {
     // MARK: - Full Row (plain row for List, supports native swipe-to-delete)
 
     private func fullRow(_ item: TranscriptionResult) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if searchText.isEmpty {
-                Text(item.text)
-                    .font(.body)
-                    .foregroundStyle(Color.textPrimary)
-                    .lineLimit(3)
-            } else {
-                highlightedText(item.text)
-                    .font(.body)
-                    .lineLimit(3)
+        HStack(spacing: 0) {
+            // Amber left accent for recent items (<2 min)
+            if isRecent(item) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.processingAmber)
+                    .frame(width: 3)
+                    .padding(.vertical, 4)
+                    .padding(.trailing, 8)
             }
 
-            HStack(spacing: 8) {
-                Text(item.language.uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color.accentTeal)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Color.accentTeal.opacity(0.15), in: Capsule())
+            VStack(alignment: .leading, spacing: 6) {
+                if searchText.isEmpty {
+                    Text(item.text)
+                        .font(.body)
+                        .foregroundStyle(Color.textPrimary)
+                        .lineLimit(3)
+                } else {
+                    highlightedText(item.text)
+                        .font(.body)
+                        .lineLimit(3)
+                }
 
-                Text(item.formattedDuration)
-                    .font(.caption)
-                    .foregroundStyle(Color.textMuted)
-
-                Text(item.relativeTimestamp)
-                    .font(.caption)
-                    .foregroundStyle(Color.textMuted)
-
-                Spacer()
-
-                // "Copied" flash feedback
-                if copiedID == item.id {
-                    Text("Copied")
-                        .font(.caption2.weight(.medium))
+                HStack(spacing: 8) {
+                    Text(item.language.uppercased())
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.accentTeal)
-                        .transition(.opacity)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.accentTeal.opacity(0.15), in: Capsule())
+
+                    Text(item.formattedDuration)
+                        .font(.caption)
+                        .foregroundStyle(Color.textMuted)
+
+                    Text(item.relativeTimestamp)
+                        .font(.caption)
+                        .foregroundStyle(isRecent(item) ? Color.processingAmber : Color.textMuted)
+
+                    Spacer()
+
+                    // "Copied" flash feedback
+                    if copiedID == item.id {
+                        Text("Copied")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Color.accentTeal)
+                            .transition(.opacity)
+                    }
                 }
             }
         }

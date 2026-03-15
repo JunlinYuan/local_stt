@@ -56,6 +56,12 @@ final class AppState {
         didSet { UserDefaults.standard.set(language, forKey: "stt_language") }
     }
 
+    /// Append mode: new transcriptions are appended to the most recent history entry
+    /// instead of creating a new one. Useful for dictating long text in shorter parts.
+    var appendMode: Bool {
+        didSet { UserDefaults.standard.set(appendMode, forKey: "append_mode") }
+    }
+
     // MARK: - Observable Mirrors
     //
     // VocabularyManager and ReplacementManager are not @Observable. SwiftUI only
@@ -84,6 +90,7 @@ final class AppState {
     init() {
         // Load persisted settings
         self.language = UserDefaults.standard.string(forKey: "stt_language") ?? ""
+        self.appendMode = UserDefaults.standard.bool(forKey: "append_mode")
 
         // Initialize vocabulary manager
         let bundledVocab = Bundle.main.url(forResource: "vocabulary", withExtension: "txt")
@@ -227,7 +234,7 @@ final class AppState {
                     finalText += " "
                 }
 
-                // Build final result if text was modified
+                // Build final result with processed text
                 if finalText != result.text {
                     result = TranscriptionResult(
                         text: finalText,
@@ -238,15 +245,37 @@ final class AppState {
                     )
                 }
 
-                // Auto-copy to clipboard
-                #if canImport(UIKit)
-                UIPasteboard.general.string = result.text
-                #endif
+                // Append mode: merge with the most recent history entry
+                if self.appendMode, let lastItem = self.history.first {
+                    let existingText = lastItem.text.trimmingCharacters(in: .whitespaces)
+                    let newText = result.text.trimmingCharacters(in: .whitespaces)
+                    let mergedText = existingText + " " + newText + " "
+                    let mergedResult = TranscriptionResult(
+                        text: mergedText,
+                        language: result.language,
+                        duration: lastItem.duration + result.duration,
+                        processingTime: result.processingTime,
+                        timestamp: Date()
+                    )
+                    self.history[0] = mergedResult
+                    self.saveHistory()
 
-                // Add to history
-                addToHistory(result)
+                    #if canImport(UIKit)
+                    UIPasteboard.general.string = mergedResult.text
+                    #endif
 
-                state = .result(result)
+                    self.state = .result(mergedResult)
+                } else {
+                    // Auto-copy to clipboard
+                    #if canImport(UIKit)
+                    UIPasteboard.general.string = result.text
+                    #endif
+
+                    // Add to history
+                    self.addToHistory(result)
+
+                    self.state = .result(result)
+                }
             } catch {
                 state = .error(error.localizedDescription)
                 scheduleErrorReset()

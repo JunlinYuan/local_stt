@@ -55,6 +55,14 @@
     {
       "from": "cloud.mt",
       "to": "CLAUDE.md"
+    },
+    {
+      "from": "Clawcode",
+      "to": "Claude Code"
+    },
+    {
+      "from": "CLOTCode",
+      "to": "Claude Code"
     }
   ]
 }

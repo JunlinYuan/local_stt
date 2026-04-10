@@ -1,0 +1,84 @@
+name: LocalSTT
+options:
+  bundleIdPrefix: com.localSTT
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  LocalSTTCore:
+    path: .
+
+targets:
+  LocalSTT:
+    type: application
+    platform: iOS
+    preBuildScripts:
+      - script: |
+          # Sync vocabulary from macOS app's live data into iOS bundle resources.
+          # On developer machines: copies from ~/Library/Application Support/LocalSTT
+          # On fresh clones: creates empty placeholder files so the build succeeds.
+          # These files are gitignored — they are private user data.
+          MAC_APP_SUPPORT="${HOME}/Library/Application Support/LocalSTT"
+          IOS_RESOURCES="${SRCROOT}/Resources"
+
+          # NOTE: Resources/ files are ephemeral — any direct edits will be
+          # overwritten on the next build. Edit Application Support instead.
+          for FILE in vocabulary.txt vocabulary_usage.json replacements.json; do
+            if [ -f "${MAC_APP_SUPPORT}/${FILE}" ]; then
+              cp "${MAC_APP_SUPPORT}/${FILE}" "${IOS_RESOURCES}/${FILE}"
+              echo "Synced ${FILE} from macOS app"
+            elif [ ! -f "${IOS_RESOURCES}/${FILE}" ]; then
+              case "${FILE}" in
+                vocabulary.txt)
+                  printf '# Custom vocabulary for speech-to-text\n# One word/phrase per line, comments start with #\n' > "${IOS_RESOURCES}/${FILE}"
+                  ;;
+                vocabulary_usage.json)
+                  printf '{}' > "${IOS_RESOURCES}/${FILE}"
+                  ;;
+                replacements.json)
+                  printf '{"replacements": []}' > "${IOS_RESOURCES}/${FILE}"
+                  ;;
+              esac
+              echo "Created empty placeholder for ${FILE}"
+            fi
+          done
+        name: Sync Vocabulary from macOS App
+    sources:
+      - path: Sources/LocalSTT
+        type: group
+      - path: Resources/vocabulary.txt
+        buildPhase: resources
+      - path: Resources/vocabulary_usage.json
+        buildPhase: resources
+      - path: Resources/replacements.json
+        buildPhase: resources
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
+    dependencies:
+      - package: LocalSTTCore
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.localSTT.app
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_VERSION: "5.9"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  LocalSTTCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/LocalSTTCoreTests
+        type: group
+    dependencies:
+      - package: LocalSTTCore
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: true

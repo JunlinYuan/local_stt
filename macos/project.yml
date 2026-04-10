@@ -1,0 +1,73 @@
+name: LocalSTTMac
+options:
+  bundleIdPrefix: com.localSTT
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  LocalSTTCore:
+    path: ../ios
+
+targets:
+  LocalSTTMac:
+    type: application
+    platform: macOS
+    preBuildScripts:
+      - script: |
+          # Ensure vocabulary/replacements seed files exist so the build succeeds.
+          # These files are gitignored — private user data is in ~/Library/Application Support/LocalSTT.
+          # On fresh clones the bundle ships with empty seeds; first launch creates the working copy.
+          MAC_RESOURCES="${SRCROOT}/Resources"
+
+          for FILE in vocabulary.txt vocabulary_usage.json replacements.json; do
+            if [ ! -f "${MAC_RESOURCES}/${FILE}" ]; then
+              case "${FILE}" in
+                vocabulary.txt)
+                  printf '# Custom vocabulary for speech-to-text\n# One word/phrase per line, comments start with #\n' > "${MAC_RESOURCES}/${FILE}"
+                  ;;
+                vocabulary_usage.json)
+                  printf '{}' > "${MAC_RESOURCES}/${FILE}"
+                  ;;
+                replacements.json)
+                  printf '{"replacements": []}' > "${MAC_RESOURCES}/${FILE}"
+                  ;;
+              esac
+              echo "Created empty placeholder for ${FILE}"
+            fi
+          done
+        name: Ensure Vocabulary Placeholders
+    sources:
+      - path: Sources/LocalSTTMac
+        type: group
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
+      - path: Resources/vocabulary.txt
+        buildPhase: resources
+      - path: Resources/vocabulary_usage.json
+        buildPhase: resources
+      - path: Resources/replacements.json
+        buildPhase: resources
+    dependencies:
+      - package: LocalSTTCore
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.localSTT.mac
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        CODE_SIGN_ENTITLEMENTS: Resources/LocalSTTMac.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Hardened Runtime must be OFF for CGEvent.post() to work (accessibility simulation)
+        ENABLE_HARDENED_RUNTIME: NO
+        # Use "Apple Development" for a stable TCC code-requirement hash across rebuilds.
+        # Ad-hoc ("-") generates a new hash every build, invalidating TCC entries for
+        # Accessibility and Input Monitoring, which causes silent permission denials.
+        # If no Apple Development cert is available, fall back to ad-hoc.
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 87USV8CD9Z

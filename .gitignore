@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# UV
+.uv/
+# Note: uv.lock is tracked for reproducible builds
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Model cache (large files)
+models/
+mlx_models/
+backend/mlx_models/
+*.bin
+*.pt
+*.onnx
+*.npz
+
+# Audio files (test recordings)
+*.wav
+*.mp3
+*.webm
+*.m4a
+
+# Build
+dist/
+build/
+
+# User-specific data (should not be committed)
+# Note: the globs below match exact filenames only — test fixtures must use
+# prefixed names (e.g. test_vocabulary.txt) to stay tracked.
+backend/history.json
+backend/settings.json
+**/vocabulary.txt
+**/vocabulary_usage.json
+**/replacements.json
+
+# Debug/temporary files
+backend/filter_log.txt
+backend/debug_audio/*.wav
+backend/debug_audio/*_meta.txt
+backend/debug_audio/test_run_*/
+
+# iOS / Xcode (xcodegen regenerates the .xcodeproj on demand)
+ios/.build/
+ios/.swiftpm/
+ios/LocalSTT.xcodeproj/
+
+# macOS / Xcode (xcodegen regenerates the .xcodeproj on demand)
+macos/.build/
+macos/.swiftpm/
+macos/LocalSTTMac.xcodeproj/
+
+# Personal audio test files
+tests/audio/
+
+# Agent reports (contain local paths)
+reports/
+
+# Claude Code local settings
+.claude/settings.local.json
+agent-reports/
+docs/
+notes/
+.claude/

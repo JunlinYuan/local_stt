@@ -8,6 +8,7 @@ Words are automatically ordered by usage frequency (most-used first).
 """
 
 import json
+import re
 import threading
 import time
 from pathlib import Path
@@ -306,3 +307,20 @@ def init_manager(
     global _manager
     _manager = VocabularyManager(on_change=on_change)
     return _manager
+
+
+def find_matches(text: str, vocab: list[str]) -> list[str]:
+    """Find vocabulary words appearing in text (case-insensitive whole-word).
+
+    Pure detection — does NOT rewrite text. Feeds `record_usage()` so the
+    usage-ordered prompt keeps reflecting actual dictation patterns.
+    """
+    if not vocab or not text:
+        return []
+
+    matched: list[str] = []
+    for word in vocab:
+        pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
+        if pattern.search(text):
+            matched.append(word)
+    return matched

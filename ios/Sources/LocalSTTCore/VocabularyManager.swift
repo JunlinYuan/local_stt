@@ -1,10 +1,11 @@
 import Foundation
 
-/// Manages custom vocabulary for STT prompt biasing and casing correction.
+/// Manages custom vocabulary for STT prompt biasing.
 ///
 /// Ported from `backend/vocabulary.py` and `backend/groq_stt.py:_build_prompt()`.
-/// Loads vocabulary from a text file, builds Groq-compatible prompts, and applies
-/// canonical casing to transcription results.
+/// Loads vocabulary from a text file, builds Groq-compatible prompts, manages
+/// word additions/removals, and tracks per-word usage frequency so the prompt
+/// can prioritize the most-used words when the 896-char limit is reached.
 public final class VocabularyManager: Sendable {
     /// Maximum vocabulary size (matches Python `MAX_VOCABULARY_SIZE`).
     public static let maxVocabularySize = 85
@@ -345,4 +346,31 @@ public final class VocabularyManager: Sendable {
         return "\(prefix)\(included.joined(separator: ", "))\(suffix)"
     }
 
+    // MARK: - Match Detection
+
+    /// Find vocabulary words appearing in text (case-insensitive whole-word).
+    ///
+    /// Pure detection — does NOT rewrite text. Used to feed `recordUsage(for:)`
+    /// so the usage-ordered prompt keeps reflecting actual dictation patterns.
+    public func findMatches(in text: String) -> [String] {
+        let vocab = words
+        guard !vocab.isEmpty, !text.isEmpty else { return [] }
+
+        var matched: [String] = []
+        let range = NSRange(text.startIndex..., in: text)
+
+        for word in vocab {
+            let escaped = NSRegularExpression.escapedPattern(for: word)
+            guard let regex = try? NSRegularExpression(
+                pattern: "\\b\(escaped)\\b",
+                options: .caseInsensitive
+            ) else { continue }
+
+            if regex.firstMatch(in: text, range: range) != nil {
+                matched.append(word)
+            }
+        }
+
+        return matched
+    }
 }

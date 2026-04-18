@@ -17,6 +17,7 @@ from pathlib import Path
 from groq import Groq
 
 import replacements
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting
 
@@ -144,6 +145,11 @@ class GroqSTT:
             inference_time = (time.time() - inference_start) * 1000
 
             full_text = response.text.strip() if response.text else ""
+
+            # Track vocabulary usage (pure match detection, no rewrite)
+            matched = vocabulary.find_matches(full_text, self.vocabulary)
+            if matched:
+                vocabulary.get_manager().record_usage(matched)
 
             # Apply word replacements (if enabled)
             if get_setting("replacements_enabled"):

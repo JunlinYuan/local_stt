@@ -209,7 +209,13 @@ final class AppState {
                     prompt: prompt
                 )
 
-                // Pipeline: replacements → hallucination check
+                // Pipeline: usage tracking (no rewrite) → replacements → hallucination check
+
+                let matched = vocabularyManager.findMatches(in: result.text)
+                if !matched.isEmpty {
+                    vocabularyManager.recordUsage(for: matched)
+                    syncVocabulary()
+                }
 
                 var finalText = replacementManager.applyReplacements(to: result.text)
 

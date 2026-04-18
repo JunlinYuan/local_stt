@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import replacements
+import vocabulary
 from content_filter import get_filter
 from settings import get_setting
 
@@ -239,6 +240,11 @@ class Gemma4STT:
             full_text = re.sub(r'(?<=[^\x00-\x7F])\s+(?=[^\x00-\x7F])', '', full_text)
 
         # Post-processing pipeline (same as all other providers)
+
+        # Track vocabulary usage (pure match detection, no rewrite)
+        matched = vocabulary.find_matches(full_text, self.vocabulary)
+        if matched:
+            vocabulary.get_manager().record_usage(matched)
 
         # Apply word replacements (if enabled)
         if get_setting("replacements_enabled"):

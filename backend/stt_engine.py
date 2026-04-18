@@ -170,6 +170,10 @@ class STTEngine:
             inference_time = (time.time() - inference_start) * 1000  # ms
 
             full_text = result.get("text", "").strip()
+            # Track vocabulary usage (pure match detection, no rewrite)
+            matched = vocabulary.find_matches(full_text, self.vocabulary)
+            if matched:
+                vocabulary.get_manager().record_usage(matched)
             # Apply word replacements (if enabled)
             if get_setting("replacements_enabled"):
                 full_text = replacements.get_manager().apply_replacements(full_text)

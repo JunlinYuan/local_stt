@@ -209,20 +209,11 @@ final class AppState {
                     prompt: prompt
                 )
 
-                // Pipeline: vocab casing → record usage → replacements → hallucination check
+                // Pipeline: replacements → hallucination check
 
-                // 1. Apply vocabulary casing
-                let (corrected, matchedWords) = vocabularyManager.applyVocabularyCasing(to: result.text)
-                var finalText = corrected
+                var finalText = replacementManager.applyReplacements(to: result.text)
 
-                // 2. Record vocabulary usage
-                vocabularyManager.recordUsage(for: matchedWords)
-                syncVocabulary()
-
-                // 3. Apply word replacements (if enabled)
-                finalText = replacementManager.applyReplacements(to: finalText)
-
-                // 4. Check for hallucination
+                // Check for hallucination
                 if HallucinationFilter.isHallucination(finalText) {
                     state = .error("Discarded (hallucination detected)")
                     scheduleErrorReset()

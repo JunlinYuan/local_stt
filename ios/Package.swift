@@ -15,8 +15,7 @@ let package = Package(
         .testTarget(
             name: "LocalSTTCoreTests",
             dependencies: ["LocalSTTCore"],
-            path: "Tests/LocalSTTCoreTests",
-            resources: [.copy("Fixtures")]
+            path: "Tests/LocalSTTCoreTests"
         ),
     ]
 )

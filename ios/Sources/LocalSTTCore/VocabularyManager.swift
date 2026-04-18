@@ -345,46 +345,4 @@ public final class VocabularyManager: Sendable {
         return "\(prefix)\(included.joined(separator: ", "))\(suffix)"
     }
 
-    // MARK: - Casing Correction (ported from vocabulary_utils.py)
-
-    /// Apply canonical vocabulary casing to transcribed text.
-    ///
-    /// Uses word-boundary regex matching (case-insensitive) to replace
-    /// each occurrence with the vocabulary's canonical form.
-    ///
-    /// - Parameter text: Raw transcription text
-    /// - Returns: Tuple of (corrected text, list of matched vocabulary words)
-    public func applyVocabularyCasing(to text: String) -> (String, [String]) {
-        let vocab = words
-        guard !vocab.isEmpty else { return (text, []) }
-
-        var result = text
-        var matched: [String] = []
-
-        for word in vocab {
-            let escaped = NSRegularExpression.escapedPattern(for: word)
-            // \b word boundary — note: ICU regex \b handles most cases but
-            // may differ from Python re for hyphenated words
-            guard let regex = try? NSRegularExpression(
-                pattern: "\\b\(escaped)\\b",
-                options: .caseInsensitive
-            ) else { continue }
-
-            let range = NSRange(result.startIndex..., in: result)
-            if regex.firstMatch(in: result, range: range) != nil {
-                matched.append(word)
-                // Escape replacement template — $0, $1, \0 etc. have special meaning
-                let escapedTemplate = word
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "$", with: "\\$")
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    range: NSRange(result.startIndex..., in: result),
-                    withTemplate: escapedTemplate
-                )
-            }
-        }
-
-        return (result, matched)
-    }
 }

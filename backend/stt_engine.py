@@ -16,7 +16,6 @@ import replacements
 import vocabulary
 from content_filter import get_filter
 from settings import get_setting, get_stt_provider
-from vocabulary_utils import apply_vocabulary_casing
 
 
 class STTEngine:
@@ -171,12 +170,6 @@ class STTEngine:
             inference_time = (time.time() - inference_start) * 1000  # ms
 
             full_text = result.get("text", "").strip()
-            # Apply canonical casing from vocabulary and track usage
-            full_text, matched_words = apply_vocabulary_casing(
-                full_text, self.vocabulary
-            )
-            if matched_words:
-                vocabulary.get_manager().record_usage(matched_words)
             # Apply word replacements (if enabled)
             if get_setting("replacements_enabled"):
                 full_text = replacements.get_manager().apply_replacements(full_text)

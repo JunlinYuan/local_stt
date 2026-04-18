@@ -17,10 +17,8 @@ import time
 from pathlib import Path
 
 import replacements
-import vocabulary
 from content_filter import get_filter
 from settings import get_setting
-from vocabulary_utils import apply_vocabulary_casing
 
 logger = logging.getLogger(__name__)
 
@@ -241,11 +239,6 @@ class Gemma4STT:
             full_text = re.sub(r'(?<=[^\x00-\x7F])\s+(?=[^\x00-\x7F])', '', full_text)
 
         # Post-processing pipeline (same as all other providers)
-
-        # Apply canonical casing from vocabulary and track usage
-        full_text, matched_words = apply_vocabulary_casing(full_text, self.vocabulary)
-        if matched_words:
-            vocabulary.get_manager().record_usage(matched_words)
 
         # Apply word replacements (if enabled)
         if get_setting("replacements_enabled"):

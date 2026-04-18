@@ -8,10 +8,8 @@ from pathlib import Path
 from openai import OpenAI
 
 import replacements
-import vocabulary
 from content_filter import get_filter
 from settings import get_setting
-from vocabulary_utils import apply_vocabulary_casing
 
 
 class OpenAISTT:
@@ -102,13 +100,6 @@ class OpenAISTT:
             inference_time = (time.time() - inference_start) * 1000
 
             full_text = response.text.strip() if response.text else ""
-
-            # Apply canonical casing from vocabulary and track usage
-            full_text, matched_words = apply_vocabulary_casing(
-                full_text, self.vocabulary
-            )
-            if matched_words:
-                vocabulary.get_manager().record_usage(matched_words)
 
             # Apply word replacements (if enabled)
             if get_setting("replacements_enabled"):
